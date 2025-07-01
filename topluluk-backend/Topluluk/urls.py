@@ -28,7 +28,8 @@ router.register('user', community_views.UserViewSet, basename='user')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('login/', community_views.LoginView.as_view(), name='login'),
+    path('logout/', community_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

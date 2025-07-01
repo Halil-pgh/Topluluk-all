@@ -23,3 +23,7 @@ class DoesUserDontHaveProfile(permissions.BasePermission):
         if request.user.is_authenticated and request.method == 'POST':
             return not Profile.objects.filter(user=request.user).exists()
         return True
+
+class IsNotAuthenticated(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return not request.user.is_authenticated

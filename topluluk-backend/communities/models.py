@@ -33,6 +33,12 @@ class Community(models.Model):
     def subscriber_count(self):
         return self.subscriber_set.count()
 
+    def total_view_count(self):
+        total = 0
+        for topic in self.topic_set:
+            total += topic.view_count()
+        return total
+
     def __str__(self):
         return self.name
 

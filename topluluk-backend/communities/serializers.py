@@ -9,6 +9,22 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email']
 
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'password', 'email']
+
+    def create(self, validated_data):
+        user = User(
+            username=validated_data['username'],
+            email=validated_data.get('email', '') # if no email specified the returns ''
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
+
 class ProfileSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.HyperlinkedRelatedField(
         view_name='user-detail',
