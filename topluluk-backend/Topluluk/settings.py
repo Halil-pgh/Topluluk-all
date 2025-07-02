@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'communities.apps.CommunitiesConfig',
     'rest_framework',
-    'corsheaders'
+    'rest_framework.authtoken',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -58,6 +59,10 @@ ROOT_URLCONF = 'Topluluk.urls'
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'communities.authentication.CookieTokenAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ]
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -115,6 +120,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+# csrf
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
