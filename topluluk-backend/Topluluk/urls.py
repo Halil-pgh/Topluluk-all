@@ -21,12 +21,15 @@ from django.conf import settings
 from rest_framework.routers import DefaultRouter
 
 from communities import views as community_views
+from communities.views import MyProfileView
 
 router = DefaultRouter()
 router.register('profile', community_views.ProfileViewSet, basename='profile')
 router.register('user', community_views.UserViewSet, basename='user')
+router.register('community', community_views.CommunityViewSet, basename='community')
 
 urlpatterns = [
+    path('my_profile/', MyProfileView.as_view(), name='my_profile'),
     path('', include(router.urls)),
     path('admin/', admin.site.urls),
     path('api/login/', community_views.LoginView.as_view(), name='login'),

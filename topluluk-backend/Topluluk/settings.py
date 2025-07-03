@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+import datetime
 import os
 from pathlib import Path
 
@@ -66,7 +67,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(seconds=5),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
     'BLACKLIST_AFTER_ROTATION': True,
 }
 

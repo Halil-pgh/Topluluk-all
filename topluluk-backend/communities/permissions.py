@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-from communities.models import Profile
+from communities.models import Profile, Moderator
 
 
 class IsOwnerOrReadonly(permissions.BasePermission):
@@ -27,3 +27,9 @@ class DoesUserDontHaveProfile(permissions.BasePermission):
 class IsNotAuthenticated(permissions.BasePermission):
     def has_permission(self, request, view):
         return not request.user.is_authenticated
+
+class IsModerator(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_authenticated:
+            return Moderator.objects.filter(user=request.user, community=obj).exists()
+        return False

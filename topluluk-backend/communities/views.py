@@ -1,20 +1,16 @@
-from email.policy import default
-from http.client import responses
-
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.middleware.csrf import get_token
-from rest_framework import permissions, generics, mixins, views, status, viewsets
-from rest_framework.authtoken.models import Token
+from rest_framework import permissions, views, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from communities.models import Profile
+from communities.models import Profile, Community, Topic, Moderator
 from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser, DoesUserDontHaveProfile, \
-    IsNotAuthenticated
-from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer
+    IsNotAuthenticated, IsModerator
+from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -55,7 +51,7 @@ class LoginView(views.APIView):
             refresh = RefreshToken.for_user(user)
             response = Response({'message': 'login successful'})
             response.set_cookie('access', str(refresh.access_token), httponly=True, samesite='Lax',
-                                max_age=10)
+                                max_age=5)
             response.set_cookie('refresh', str(refresh), httponly=True, samesite='Lax', max_age=60*60*24)
             return response
         return Response({'error': 'Invalid username or password'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -101,24 +97,39 @@ class CookieTokenRefreshView(views.APIView):
         response.set_cookie('access', access_token, httponly=True, samesite='Lax')
         return response
 
-
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     lookup_field = 'slug'
 
-    @action(detail=False, methods=['get'])
-    def me(self, request):
-        profile = Profile.objects.get(user=request.user)
-        serializer = self.get_serializer(profile)
-        return Response({'profile': serializer.data }, status=status.HTTP_200_OK)
-
     def get_permissions(self):
         if self.action == 'create':
             return [permissions.IsAuthenticatedOrReadOnly(), DoesUserDontHaveProfile()]
-        elif self.action in ['update', 'partial_update', 'destroy', 'me']:
+        elif self.action in ['update', 'partial_update', 'destroy']:
             return [permissions.IsAuthenticatedOrReadOnly(), IsOwnerOrReadonly()]
         return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class MyProfileView(RetrieveUpdateAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadonly]
+
+    def get_object(self):
+        return Profile.objects.get(user=self.request.user)
+
+class CommunityViewSet(viewsets.ModelViewSet):
+    queryset = Community.objects.all()
+    serializer_class = CommunitySerializer
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.IsAuthenticated()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsModerator()]
+        return [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        community = serializer.save()
+        Moderator.objects.create(user=self.request.user, community=community)
