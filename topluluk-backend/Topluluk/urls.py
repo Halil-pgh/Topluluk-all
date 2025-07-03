@@ -28,8 +28,9 @@ router.register('user', community_views.UserViewSet, basename='user')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('login/', community_views.LoginView.as_view(), name='login'),
-    path('logout/', community_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
+    path('api/login/', community_views.LoginView.as_view(), name='login'),
+    path('api/logout/', community_views.LogoutView.as_view(), name='logout'),
+    path('api/token/refresh/', community_views.CookieTokenRefreshView.as_view(), name='token_refresh'),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

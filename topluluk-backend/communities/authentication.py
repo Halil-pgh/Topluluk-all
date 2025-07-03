@@ -1,15 +1,15 @@
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.authtoken.models import Token
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 
-class CookieTokenAuthentication(TokenAuthentication):
+class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
-        token = request.COOKIES.get('authToken')
-        if not token:
+        raw_token = request.COOKIES.get('access')
+        if not raw_token:
             return None
+
         try:
-            user = Token.objects.get(key=token).user
-        except Token.DoesNotExist:
-            raise AuthenticationFailed('Invalid Token')
-        return user, token
+            validated_token = self.get_validated_token(raw_token)
+            return self.get_user(validated_token), validated_token
+        except InvalidToken:
+            return None
