@@ -30,6 +30,9 @@ class Community(models.Model):
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
+    def topics(self):
+        return self.topic_set.all()
+
     def subscriber_count(self):
         return self.subscriber_set.count()
 
@@ -59,14 +62,19 @@ class Moderator(models.Model):
 
 class Topic(models.Model):
     community = models.ForeignKey(Community, on_delete=models.CASCADE)
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, unique=True)
     text = models.TextField(null=False)
-    image = models.ImageField(upload_to='topic_images/')
+    image = models.ImageField(upload_to='topic_images/', null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     vote_count = models.IntegerField(default=0)
     view_count = models.IntegerField(default=0)
+    slug = models.SlugField(unique=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
-

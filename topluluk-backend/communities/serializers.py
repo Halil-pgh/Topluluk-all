@@ -28,7 +28,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.HyperlinkedRelatedField(
         view_name='user-detail',
-        read_only=True,
+        read_only=True
     )
     url = serializers.HyperlinkedIdentityField(
         view_name='profile-detail',
@@ -40,9 +40,14 @@ class ProfileSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['url', 'user', 'display_name', 'image', 'description', 'links']
 
 class CommunitySerializer(serializers.HyperlinkedModelSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='community-detail',
+        lookup_field='slug'
+    )
+
     class Meta:
         model = Community
-        fields = '__all__'
+        fields = ['url', 'name', 'image', 'description', 'slug']
 
 class SubscriberSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -55,6 +60,21 @@ class ModeratorSerializer(serializers.HyperlinkedModelSerializer):
         fields = '__all__'
 
 class TopicSerializer(serializers.HyperlinkedModelSerializer):
+    community = serializers.HyperlinkedRelatedField(
+        queryset=Community.objects.all(),
+        view_name='community-detail',
+        lookup_field='slug'
+    )
+    user = serializers.HyperlinkedRelatedField(
+        view_name='user-detail',
+        read_only=True
+    )
+    url = serializers.HyperlinkedIdentityField(
+        view_name='topic-detail',
+        lookup_field='slug'
+    )
+
     class Meta:
         model = Topic
-        fields = '__all__'
+        fields = ['url', 'community', 'title', 'text', 'image', 'created_date', 'user',
+                  'vote_count', 'view_count', 'slug']

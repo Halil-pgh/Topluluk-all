@@ -27,10 +27,11 @@ router = DefaultRouter()
 router.register('profile', community_views.ProfileViewSet, basename='profile')
 router.register('user', community_views.UserViewSet, basename='user')
 router.register('community', community_views.CommunityViewSet, basename='community')
+router.register('topic', community_views.TopicViewSet, basename='topic')
 
 urlpatterns = [
-    path('my_profile/', MyProfileView.as_view(), name='my_profile'),
     path('', include(router.urls)),
+    path('my_profile/', MyProfileView.as_view(), name='my_profile'),
     path('admin/', admin.site.urls),
     path('api/login/', community_views.LoginView.as_view(), name='login'),
     path('api/logout/', community_views.LogoutView.as_view(), name='logout'),

@@ -10,7 +10,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from communities.models import Profile, Community, Topic, Moderator
 from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser, DoesUserDontHaveProfile, \
     IsNotAuthenticated, IsModerator
-from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer
+from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer, \
+    TopicSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -19,6 +20,12 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def am_i_authenticated(self, request):
         return Response({'is_authenticated': request.user.is_authenticated})
+
+    @action(detail=True, methods=['get'])
+    def profile(self, request, pk):
+        profile = self.get_object().profile
+        serializer = ProfileSerializer(profile, context={ 'request': request })
+        return Response({ 'profile': serializer.data })
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -122,14 +129,37 @@ class MyProfileView(RetrieveUpdateAPIView):
 class CommunityViewSet(viewsets.ModelViewSet):
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
+    lookup_field = 'slug'
+
+    @action(detail=True, methods=['get'])
+    def topics(self, request, slug):
+        community = self.get_object()
+        serializer = TopicSerializer(community.topics(), many=True, context={'request': request})
+        response = Response(serializer.data)
+        return response
 
     def get_permissions(self):
         if self.action == 'create':
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsModerator()]
-        return [permissions.IsAuthenticatedOrReadOnly]
+        return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
         community = serializer.save()
         Moderator.objects.create(user=self.request.user, community=community)
+
+class TopicViewSet(viewsets.ModelViewSet):
+    queryset = Topic.objects.all()
+    serializer_class = TopicSerializer
+    lookup_field = 'slug'
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.IsAuthenticated()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsModerator()]
+        return [permissions.IsAuthenticatedOrReadOnly()]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
