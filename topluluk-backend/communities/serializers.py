@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from communities.models import Profile, Community, Subscriber, Moderator, Topic
+from communities.models import Profile, Community, Subscriber, Moderator, Topic, Comment, TopicVote
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -59,6 +59,29 @@ class ModeratorSerializer(serializers.HyperlinkedModelSerializer):
         model = Moderator
         fields = '__all__'
 
+class CommentSerializer(serializers.HyperlinkedModelSerializer):
+    url = serializers.HyperlinkedIdentityField(
+        view_name='comment-detail'
+    )
+    user = serializers.HyperlinkedRelatedField(
+        view_name='user-detail',
+        read_only=True
+    )
+    topic = serializers.HyperlinkedRelatedField(
+        queryset=Topic.objects.all(),
+        view_name='topic-detail',
+        lookup_field='slug',
+    )
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = ['url', 'topic', 'text', 'created_date', 'user', 'vote_count', 'upper_comment', 'replies']
+
+    def get_replies(self, obj):
+        serializer = CommentSerializer(obj.replies.all(), many=True, context=self.context)
+        return serializer.data
+
 class TopicSerializer(serializers.HyperlinkedModelSerializer):
     community = serializers.HyperlinkedRelatedField(
         queryset=Community.objects.all(),
@@ -73,8 +96,13 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
         view_name='topic-detail',
         lookup_field='slug'
     )
+    comments = CommentSerializer(many=True, read_only=True)
+    vote_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Topic
         fields = ['url', 'community', 'title', 'text', 'image', 'created_date', 'user',
-                  'vote_count', 'view_count', 'slug']
+                  'vote_count', 'view_count', 'slug', 'comments']
+
+    def get_vote_count(self, obj):
+        return obj.vote_count()

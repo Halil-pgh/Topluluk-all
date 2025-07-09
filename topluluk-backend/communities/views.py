@@ -7,11 +7,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from communities.models import Profile, Community, Topic, Moderator
+from communities.models import Profile, Community, Topic, Moderator, Comment, TopicVote, CommentVote
 from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser, DoesUserDontHaveProfile, \
     IsNotAuthenticated, IsModerator
 from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer, \
-    TopicSerializer
+    TopicSerializer, CommentSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -19,7 +19,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def am_i_authenticated(self, request):
-        return Response({'is_authenticated': request.user.is_authenticated})
+        if request.user.is_authenticated:
+            stat = status.HTTP_200_OK
+        else:
+            stat = status.HTTP_401_UNAUTHORIZED
+        return Response({'is_authenticated': request.user.is_authenticated}, status=stat)
 
     @action(detail=True, methods=['get'])
     def profile(self, request, pk):
@@ -127,7 +131,6 @@ class MyProfileView(RetrieveUpdateAPIView):
         return Profile.objects.get(user=self.request.user)
 
 class CommunityViewSet(viewsets.ModelViewSet):
-    queryset = Community.objects.all()
     serializer_class = CommunitySerializer
     lookup_field = 'slug'
 
@@ -137,6 +140,13 @@ class CommunityViewSet(viewsets.ModelViewSet):
         serializer = TopicSerializer(community.topics(), many=True, context={'request': request})
         response = Response(serializer.data)
         return response
+
+    def get_queryset(self):
+        queryset_length = 5
+        real_length = Community.objects.count()
+        if real_length < 5:
+            queryset_length = real_length
+        return Community.objects.order_by('created_date')[:queryset_length]
 
     def get_permissions(self):
         if self.action == 'create':
@@ -149,13 +159,100 @@ class CommunityViewSet(viewsets.ModelViewSet):
         community = serializer.save()
         Moderator.objects.create(user=self.request.user, community=community)
 
-class TopicViewSet(viewsets.ModelViewSet):
+class Votable:
+    vote_class = None
+    vote_field_name = None
+
+    def get_vote_class(self):
+        return self.vote_class
+
+    def get_vote_field_name(self):
+        return self.vote_field_name
+
+    @action(detail=True, methods=['post'])
+    def up_vote(self, request, slug):
+        obj = self.get_object()
+        user = request.user
+        vote_filter = {
+            'user': user,
+            self.get_vote_field_name(): obj
+        }
+        self.get_vote_class().objects.update_or_create(
+            defaults={'value': 1},
+            **vote_filter
+        )
+        return Response({'detail': 'Up voted'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def down_vote(self, request, slug):
+        obj = self.get_object()
+        user = request.user
+        vote_filter = {
+            'user': user,
+            self.get_vote_field_name(): obj
+        }
+        self.get_vote_class().objects.update_or_create(
+            defaults={'value': -1},
+            **vote_filter
+        )
+        return Response({'detail': 'Down voted'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'])
+    def remove_vote(self, request, slug):
+        obj = self.get_object()
+        user = request.user
+        vote_filter = {
+            'user': user,
+            self.get_vote_field_name(): obj
+        }
+        self.get_vote_class().objects.filter(**vote_filter).delete()
+        return Response({'detail': 'Vote removed'}, status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'])
+    def my_vote(self, request, slug):
+        obj = self.get_object()
+        user = request.user
+        try:
+            vote_filter = {
+                'user': user,
+                self.get_vote_field_name(): obj
+            }
+            vote = self.get_vote_class().objects.get(**vote_filter)
+            return Response({'value': vote.value}, status=status.HTTP_200_OK)
+        except TopicVote.DoesNotExist:
+            return Response({'value': 0}, status=status.HTTP_200_OK)
+
+
+class TopicViewSet(viewsets.ModelViewSet, Votable):
     queryset = Topic.objects.all()
     serializer_class = TopicSerializer
     lookup_field = 'slug'
 
+    vote_class = TopicVote
+    vote_field_name = 'topic'
+
+    def get_queryset(self):
+        return Topic.objects.order_by('created_date')
+
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action == ['create', 'up_vote', 'down_vote', 'remove_vote', 'my_vote']:
+            return [permissions.IsAuthenticated()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsModerator()]
+        return [permissions.IsAuthenticatedOrReadOnly()]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class CommentViewSet(viewsets.ModelViewSet, Votable):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+
+    vote_class = CommentVote
+    vote_field_name = 'comment'
+
+    def get_permissions(self):
+        if self.action == ['create', 'up_vote', 'down_vote', 'remove_vote', 'my_vote']:
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsModerator()]

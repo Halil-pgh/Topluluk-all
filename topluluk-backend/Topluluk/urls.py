@@ -28,6 +28,7 @@ router.register('profile', community_views.ProfileViewSet, basename='profile')
 router.register('user', community_views.UserViewSet, basename='user')
 router.register('community', community_views.CommunityViewSet, basename='community')
 router.register('topic', community_views.TopicViewSet, basename='topic')
+router.register('comment', community_views.CommentViewSet, basename='comment')
 
 urlpatterns = [
     path('', include(router.urls)),

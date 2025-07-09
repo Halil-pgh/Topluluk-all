@@ -23,6 +23,7 @@ class Community(models.Model):
     name = models.CharField(max_length=100, unique=True)
     image = models.ImageField(upload_to='community_images/')
     description = models.TextField(blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -67,9 +68,11 @@ class Topic(models.Model):
     image = models.ImageField(upload_to='topic_images/', null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    vote_count = models.IntegerField(default=0)
     view_count = models.IntegerField(default=0)
     slug = models.SlugField(unique=True, blank=True)
+
+    def vote_count(self):
+        return self.topicvote_set.aggregate(total=models.Sum('value'))['total'] or 0
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -78,3 +81,51 @@ class Topic(models.Model):
 
     def __str__(self):
         return self.title
+
+class Comment(models.Model):
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='comments')
+    text = models.TextField(null=False)
+    created_date = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    upper_comment = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies'
+    )
+
+    def vote_count(self):
+        return self.commentvote_set.aggregate(total=models.Sum('value'))['total'] or 0
+
+    def comment_count(self):
+        return self.replies.count()
+
+    def __str__(self):
+        return f'{self.user.username}: {self.text}'
+
+class VoteBase(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    value = models.SmallIntegerField(default=0) # 1 for upvote, -1 for down vote
+
+    class Meta:
+        abstract = True
+
+class TopicVote(VoteBase):
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('topic', 'user')
+
+    def __str__(self):
+        return f'{self.user.username} voted {self.value} on "{self.topic.text}" topic.'
+
+class CommentVote(VoteBase):
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('comment', 'user')
+
+    def __str__(self):
+        return f'{self.user.username} voted {self.value} on "{self.comment.text}" comment.'
