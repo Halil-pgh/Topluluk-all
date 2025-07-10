@@ -76,7 +76,7 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['url', 'topic', 'text', 'created_date', 'user', 'vote_count', 'upper_comment', 'replies']
+        fields = ['url', 'id', 'topic', 'text', 'created_date', 'user', 'vote_count', 'replies']
 
     def get_replies(self, obj):
         serializer = CommentSerializer(obj.replies.all(), many=True, context=self.context)
@@ -97,12 +97,9 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
         lookup_field='slug'
     )
     comments = CommentSerializer(many=True, read_only=True)
-    vote_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Topic
         fields = ['url', 'community', 'title', 'text', 'image', 'created_date', 'user',
-                  'vote_count', 'view_count', 'slug', 'comments']
+                  'vote_count', 'view_count', 'comments', 'slug']
 
-    def get_vote_count(self, obj):
-        return obj.vote_count()

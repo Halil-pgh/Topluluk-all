@@ -146,7 +146,10 @@ class CommunityViewSet(viewsets.ModelViewSet):
         real_length = Community.objects.count()
         if real_length < 5:
             queryset_length = real_length
-        return Community.objects.order_by('created_date')[:queryset_length]
+        qs = Community.objects.order_by('created_date')
+        if self.action == 'list':
+            return qs[:queryset_length]
+        return qs
 
     def get_permissions(self):
         if self.action == 'create':
@@ -221,7 +224,6 @@ class Votable:
             return Response({'value': vote.value}, status=status.HTTP_200_OK)
         except TopicVote.DoesNotExist:
             return Response({'value': 0}, status=status.HTTP_200_OK)
-
 
 class TopicViewSet(viewsets.ModelViewSet, Votable):
     queryset = Topic.objects.all()
