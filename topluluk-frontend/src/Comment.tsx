@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import type { CommentResponse } from "./responseTypes"
 import apiClient from "./api"
-import { Avatar, Box, Button, Card, CardActions, CardContent, Collapse, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
-import { ArrowDownward, ArrowUpward, ExpandLess, ExpandMore } from "@mui/icons-material"
+import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
+import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore } from "@mui/icons-material"
+import { calcualteCommentCount } from "./Topic"
 import CreateCommentForm from "./CreateCommentForm"
 
 interface CommentProps {
@@ -38,17 +39,20 @@ function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps
     }
 
     const handleCreateComment = () => {
+        console.log('create brooo')
         setShowReplyForm(true)
     }
 
     const handleReplyCreated = () => {
         setShowReplyForm(false)
 
-        // TODO: create
+        // TODO: show it in frontend
+        // easy way is to refresh the page lol
     }
 
     return (
-        <Box sx={{ ml: depth * 3, mb: 2 }}>
+        <>
+        <Box sx={{ ml: depth * 5, mb: 2 }}>
             <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
                 <CardContent sx={{ pb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -87,7 +91,12 @@ function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps
                             </ToggleButton>
                         </ToggleButtonGroup>
                         <Typography variant="body2" sx={{ px: 1 }}>{comment.vote_count}</Typography>
-                        <Button onClick={handleCreateComment}>Reply</Button>
+                        <IconButton aria-label="comment">
+                            <Comment />
+                        </IconButton>
+                        <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(comment.replies)}</Typography>
+
+                        <Button onClick={handleCreateComment} sx={{ ml: 2 }}>Reply</Button>
                     </Box>
                     {comment.replies.length > 0 && (
                         <Button
@@ -100,10 +109,9 @@ function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps
                     )}
                 </CardActions>
             </Card>
-            
-            <Collapse in={expanded}>
-                {showReplyForm && (
-                <Box sx={{ mt: 2 }}>
+
+            {showReplyForm && (
+                <Box sx={{ mt: 3 }}>
                     <CreateCommentForm
                         topicUrl={topicUrl}
                         parentCommentUrl={comment.url}
@@ -111,9 +119,19 @@ function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps
                         onCancel={() => setShowReplyForm(false)}
                     />
                 </Box>
-                )}
-            </Collapse>
+            )}
+            
         </Box>
+
+        {expanded && comment.replies.map((reply) => (
+            <CommentComponent
+                topicUrl={topicUrl}
+                comment={reply}
+                depth={depth + 1}
+                onVote={onVote}
+            />
+        ))}
+        </>
     )
 }
 

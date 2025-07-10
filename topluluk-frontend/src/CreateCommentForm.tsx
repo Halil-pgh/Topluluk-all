@@ -1,4 +1,3 @@
-import { useNavigate, useParams } from "react-router-dom"
 import { useAuth } from "./useAuth"
 import { useState } from "react"
 import apiClient from "./api"
@@ -13,7 +12,6 @@ interface CreateCommentFormProps {
 
 function CreateCommentForm({ topicUrl, parentCommentUrl, onCommentCreated, onCancel}: CreateCommentFormProps) {
     const { isAuthenticated } = useAuth()
-    const { topicSlug } = useParams()
     const [text, setText] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -34,7 +32,7 @@ function CreateCommentForm({ topicUrl, parentCommentUrl, onCommentCreated, onCan
                 ...(isReply && { upper_comment: parentCommentUrl })
             }
 
-            await apiClient.post('comment', payload)
+            await apiClient.post('comment/', payload)
             
             setText('')
             onCommentCreated()
@@ -57,7 +55,7 @@ function CreateCommentForm({ topicUrl, parentCommentUrl, onCommentCreated, onCan
     }
 
     return (
-        <Card>
+        <Card sx={{ borderRadius: 2 }}>
             <CardContent>
                 <Typography variant="h6" gutterBottom>
                     {isReply ? 'Reply to Comment' : 'Add Comment'}

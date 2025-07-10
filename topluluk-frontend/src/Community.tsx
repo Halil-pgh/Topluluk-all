@@ -6,7 +6,7 @@ import { Avatar, Box, Button, Card, CardActionArea, CardActions, CardContent, Ca
 import { ArrowDownward, ArrowUpward, Comment } from "@mui/icons-material"
 import { useAuth } from "./useAuth"
 import { type TopicResponse } from './responseTypes'
-import { topicResponseToTopic, type Topic } from './Topic'
+import { calcualteCommentCount, topicResponseToTopic, type Topic } from './Topic'
 
 interface Community {
     name: string,
@@ -201,7 +201,7 @@ function Community() {
                                     <IconButton onClick={(e) => handleTopic(e, topic.slug)} aria-label="comment">
                                         <Comment />
                                     </IconButton>
-                                    <Typography variant="body2"  sx={{ mr: 'auto' }}>{topic.comments.length}</Typography>
+                                    <Typography variant="body2"  sx={{ mr: 'auto' }}>{calcualteCommentCount(topic.comments)}</Typography>
                                 </CardActions>
                             </Card>
                         </Grid>

@@ -3,10 +3,11 @@ import { type CommentResponse, type TopicResponse } from "./responseTypes"
 import { useParams, useNavigate } from "react-router-dom"
 import apiClient from "./api"
 import { useAuth } from "./useAuth"
-import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
+import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Collapse, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
 import ResponsiveAppBar from "./AppBar"
 import { ArrowDownward, ArrowUpward, Comment } from "@mui/icons-material"
 import CommentComponent from './Comment'
+import CreateCommentForm from "./CreateCommentForm"
 
 export interface Profile {
     url: string,
@@ -52,14 +53,25 @@ export const topicResponseToTopic = async (topicResponse: TopicResponse, isAuthe
     return topic
 }
 
+export function calcualteCommentCount(comments: CommentResponse[]): number {
+    if (comments.length === 0)
+        return 0
+
+    let total = 0
+    comments.map((comment: CommentResponse) => {
+        total += calcualteCommentCount(comment.replies) + 1
+    })
+    return total
+}
+
 function Topic() {
     // as of right now we dont really need communit slug but it is okey
     const { isAuthenticated } = useAuth()
     const { communitySlug, topicSlug } = useParams()
-    const navigate = useNavigate()
-    const [ topic, setTopic ] = useState<Topic>()
-    const [ loading, setLoading ] = useState<boolean>(true)
-    const [ error, setError ] = useState<string>('')
+    const [topic, setTopic] = useState<Topic>()
+    const [showReplyForm, setShowReplyForm] = useState(false)
+    const [loading, setLoading] = useState<boolean>(true)
+    const [error, setError] = useState<string>('')
 
     useEffect(() => {
         const fetchData = async () => {
@@ -100,6 +112,16 @@ function Topic() {
             setError('Failed to update vote')
             console.error(err)
         }
+    }
+
+    const handleCreateComment = () => {
+        setShowReplyForm(true)
+    }
+
+    const handleReplyCreated = () => {
+        setShowReplyForm(false)
+
+        // TODO: create
     }
 
     const handleCommentVote = async (commentUrl: string, newVote: number) => {
@@ -158,37 +180,32 @@ function Topic() {
         }
     }
 
-    const handleAddComment = () => {
-        navigate(`/communities/${communitySlug}/${topicSlug}/add_comment`)
-    }
-
     if (loading) {
         return (
-            <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
+            <>
                 <ResponsiveAppBar />
                 <Container sx={{ mt: 12, py: 2 }}>
                     <Typography>Loading topic...</Typography>
                 </Container>
-            </Box>
+            </>
         )
     }
 
     if (error || !topic) {
         return (
-            <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
+            <>
                 <ResponsiveAppBar />
                 <Container sx={{ mt: 12, py: 2 }}>
                     <Typography color="error">{error || 'Topic not found'}</Typography>
                 </Container>
-            </Box>
+            </>
         )
     }
 
     return (
-        <Box>
+        <>
             <ResponsiveAppBar />
             <Container sx={{ mt: 12, py: 2 }}>
-                {/* Topic Card */}
                 <Card sx={{ borderRadius: 2, boxShadow: 3, mb: 4 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
                         <Avatar src={topic.profile.image} alt={topic.profile.username} />
@@ -240,27 +257,36 @@ function Topic() {
                         <IconButton aria-label="comment">
                             <Comment />
                         </IconButton>
-                        <Typography variant="body2" sx={{ mr: 'auto' }}>{topic.comments.length}</Typography>
+                        <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(topic.comments)}</Typography>
                     </CardActions>
                 </Card>
 
-                {/* Comments Section */}
                 <Divider sx={{ mb: 3 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" component="h2">
-                        Comments ({topic.comments.length})
+                        Comments ({calcualteCommentCount(topic.comments)})
                     </Typography>
                     {isAuthenticated && (
                         <Button 
                             variant="contained" 
-                            onClick={handleAddComment}
+                            onClick={handleCreateComment}
                             sx={{ ml: 2 }}
                         >
                             Add Comment
                         </Button>
                     )}
                 </Box>
-                
+
+                {showReplyForm && (
+                    <Box sx={{ mb: 3 }}>
+                        <CreateCommentForm
+                            topicUrl={topic.url}
+                            onCommentCreated={handleReplyCreated}
+                            onCancel={() => setShowReplyForm(false)}
+                        />
+                    </Box>
+                )}
+
                 {topic.comments.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
                         No comments yet. Be the first to comment!
@@ -278,7 +304,7 @@ function Topic() {
                     </Box>
                 )}
             </Container>
-        </Box>
+        </>
     )
 }
 

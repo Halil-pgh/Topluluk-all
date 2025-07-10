@@ -56,7 +56,6 @@ apiClient.interceptors.response.use(
                 
                 processQueue(refreshErr);
                 console.error('Token refresh failed:', refreshErr);
-                window.location.href = '/login';
                 return Promise.reject(refreshErr);
             } finally {
                 isRefreshing = false;
