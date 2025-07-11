@@ -69,6 +69,7 @@ class Topic(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     view_count = models.IntegerField(default=0)
+    # TODO: add comment_count field so that frontend doesnt have to make recursive call to count comments
     slug = models.SlugField(unique=True, blank=True)
 
     def vote_count(self):
@@ -87,6 +88,7 @@ class Comment(models.Model):
     text = models.TextField(null=False)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    # TODO: add reply_count field so that frontend doesnt have to make recursive call to count replies
 
     upper_comment = models.ForeignKey(
         'self',
