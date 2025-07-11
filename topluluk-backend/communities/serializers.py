@@ -76,8 +76,11 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['url', 'id', 'topic', 'text', 'created_date', 'user', 'vote_count', 'replies']
+        fields = ['url', 'id', 'topic', 'text', 'created_date', 'user', 'vote_count', 'upper_comment', 'replies']
 
+    # TODO: i think replies should be hyperlink for optimization
+    #       change this place if data becomes large and backend becomes slow
+    #       also the way frontend works and request has to be changed
     def get_replies(self, obj):
         serializer = CommentSerializer(obj.replies.all(), many=True, context=self.context)
         return serializer.data
@@ -96,10 +99,13 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
         view_name='topic-detail',
         lookup_field='slug'
     )
-    comments = CommentSerializer(many=True, read_only=True)
+    comments = serializers.SerializerMethodField()
 
     class Meta:
         model = Topic
         fields = ['url', 'community', 'title', 'text', 'image', 'created_date', 'user',
                   'vote_count', 'view_count', 'comments', 'slug']
 
+    def get_comments(self, obj):
+        top_comments = obj.comments.filter(upper_comment__isnull=True).order_by('created_date')
+        return CommentSerializer(top_comments, many=True, read_only=True, context=self.context).data
