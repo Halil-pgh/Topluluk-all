@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import LoginForm from './LoginForm.tsx'
 import { AuthProvider } from './AuthContext.tsx'

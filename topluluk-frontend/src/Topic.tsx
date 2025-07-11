@@ -3,7 +3,7 @@ import { type CommentResponse, type TopicResponse } from "./responseTypes"
 import { useParams, useNavigate } from "react-router-dom"
 import apiClient from "./api"
 import { useAuth } from "./useAuth"
-import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Collapse, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
+import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
 import ResponsiveAppBar from "./AppBar"
 import { ArrowDownward, ArrowUpward, Comment } from "@mui/icons-material"
 import CommentComponent from './Comment'
@@ -47,7 +47,7 @@ export const topicResponseToTopic = async (topicResponse: TopicResponse, isAuthe
         voteCount: topicResponse.vote_count,
         viewCount: topicResponse.view_count,
         slug: topicResponse.slug,
-        comments: topicResponse.comments, 
+        comments: topicResponse.comments,
         vote: voteResponse.data.value,
     }
     return topic
@@ -65,7 +65,6 @@ export function calcualteCommentCount(comments: CommentResponse[]): number {
 }
 
 function Topic() {
-    // as of right now we dont really need communit slug but it is okey
     const { isAuthenticated } = useAuth()
     const { communitySlug, topicSlug } = useParams()
     const [topic, setTopic] = useState<Topic>()
@@ -121,7 +120,9 @@ function Topic() {
     const handleReplyCreated = () => {
         setShowReplyForm(false)
 
-        // TODO: create
+        // TODO: NOT do this
+        // instead, should look for what is being changed
+        window.location.reload()
     }
 
     const handleCommentVote = async (commentUrl: string, newVote: number) => {
@@ -172,7 +173,7 @@ function Topic() {
             } else if (voteAction === -1) {
                 apiClient.post(`comment/${comment.id}/down_vote/`)
             } else {
-                apiClient.post(`comment/${comment.id}/remove_vote/`)
+                apiClient.delete(`comment/${comment.id}/remove_vote/`)
             }
         } catch (err) {
             setError('Failed to update vote')
@@ -297,7 +298,7 @@ function Topic() {
                             <CommentComponent
                                 topicUrl={topic.url}
                                 key={index}
-                                comment={comment}
+                                commentResponse={comment}
                                 onVote={handleCommentVote}
                             />
                         ))}

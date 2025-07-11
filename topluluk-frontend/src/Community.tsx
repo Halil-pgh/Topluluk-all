@@ -212,7 +212,7 @@ function Community() {
                         mt:3
                     }}>
                         Ask a question
-                    </Button>                
+                    </Button>
                 }
             </Container>
         </Box>

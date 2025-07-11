@@ -38,7 +38,8 @@ export const AuthProvider = ({ children } : { children: ReactNode }) => {
         } catch (error) {
             console.error('Logout error: ', error)
         } finally {
-            setIsAuthenticated(false);
+            setIsAuthenticated(false)
+            window.location.reload()
         }
     }
 

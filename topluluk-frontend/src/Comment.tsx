@@ -5,21 +5,24 @@ import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, Toggle
 import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore } from "@mui/icons-material"
 import { calcualteCommentCount } from "./Topic"
 import CreateCommentForm from "./CreateCommentForm"
+import { useAuth } from "./useAuth"
 
 interface CommentProps {
     topicUrl: string
-    comment: CommentResponse
+    commentResponse: CommentResponse
     depth?: number
     onVote: (commentUrl: string, newVote: number) => void
 }
 
-function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps) {
+function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: CommentProps) {
     const [showReplyForm, setShowReplyForm] = useState(false)
     const [expanded, setExpanded] = useState(false)
     const [userProfile, setUserProfile] = useState<{ username: string, image: string } | null>(null)
+    const [comment, setComment] = useState<CommentResponse>(commentResponse)
+    const { isAuthenticated } = useAuth()
 
     useEffect(() => {
-        const fetchUserProfile = async () => {
+        const fetchData = async () => {
             try {
                 const userResponse = await apiClient.get(comment.user)
                 const profileResponse = await apiClient.get(`${comment.user}profile/`)
@@ -27,27 +30,33 @@ function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps
                     username: userResponse.data.username,
                     image: profileResponse.data.profile.image
                 })
+                if (isAuthenticated) {
+                    const commentVote = await apiClient.get(`${comment.url}my_vote/`)
+                    let updatedComment = { ...comment }
+                    updatedComment.vote = commentVote.data.value
+                    setComment(updatedComment)
+                }
             } catch (error) {
                 console.error('Failed to fetch user profile:', error)
             }
         }
-        fetchUserProfile()
-    }, [comment.user])
+        fetchData()
+    }, [])
 
     const handleToggleExpand = () => {
         setExpanded(!expanded)
     }
 
     const handleCreateComment = () => {
-        console.log('create brooo')
         setShowReplyForm(true)
     }
 
     const handleReplyCreated = () => {
         setShowReplyForm(false)
 
-        // TODO: show it in frontend
-        // easy way is to refresh the page lol
+        // TODO: NOT do this
+        // instead, should look for what is being changed
+        window.location.reload()
     }
 
     return (
@@ -126,7 +135,7 @@ function CommentComponent({ topicUrl, comment, depth = 0, onVote }: CommentProps
         {expanded && comment.replies.map((reply) => (
             <CommentComponent
                 topicUrl={topicUrl}
-                comment={reply}
+                commentResponse={reply}
                 depth={depth + 1}
                 onVote={onVote}
             />
