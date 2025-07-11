@@ -15,7 +15,6 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from rest_framework.routers import DefaultRouter
@@ -33,7 +32,6 @@ router.register('comment', community_views.CommentViewSet, basename='comment')
 urlpatterns = [
     path('', include(router.urls)),
     path('my_profile/', MyProfileView.as_view(), name='my_profile'),
-    path('admin/', admin.site.urls),
     path('api/login/', community_views.LoginView.as_view(), name='login'),
     path('api/logout/', community_views.LogoutView.as_view(), name='logout'),
     path('api/token/refresh/', community_views.CookieTokenRefreshView.as_view(), name='token_refresh'),
