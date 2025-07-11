@@ -62,7 +62,7 @@ class LoginView(views.APIView):
             refresh = RefreshToken.for_user(user)
             response = Response({'message': 'login successful'})
             response.set_cookie('access', str(refresh.access_token), httponly=True, samesite='Lax',
-                                max_age=5)
+                                max_age=5*60)
             response.set_cookie('refresh', str(refresh), httponly=True, samesite='Lax', max_age=60*60*24)
             return response
         return Response({'error': 'Invalid username or password'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -173,7 +173,7 @@ class Votable:
         return self.vote_field_name
 
     @action(detail=True, methods=['post'])
-    def up_vote(self, request, slug):
+    def up_vote(self, request, **kwargs):
         obj = self.get_object()
         user = request.user
         vote_filter = {
@@ -187,7 +187,7 @@ class Votable:
         return Response({'detail': 'Up voted'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
-    def down_vote(self, request, slug):
+    def down_vote(self, request, **kwargs):
         obj = self.get_object()
         user = request.user
         vote_filter = {
@@ -201,7 +201,7 @@ class Votable:
         return Response({'detail': 'Down voted'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['delete'])
-    def remove_vote(self, request, slug):
+    def remove_vote(self, request, **kwargs):
         obj = self.get_object()
         user = request.user
         vote_filter = {
@@ -212,9 +212,14 @@ class Votable:
         return Response({'detail': 'Vote removed'}, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get'])
-    def my_vote(self, request, slug):
+    def my_vote(self, request, **kwargs):
         obj = self.get_object()
         user = request.user
+
+        # not sure why permissions does not work here
+        if not request.user.is_authenticated:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         try:
             vote_filter = {
                 'user': user,
@@ -222,11 +227,10 @@ class Votable:
             }
             vote = self.get_vote_class().objects.get(**vote_filter)
             return Response({'value': vote.value}, status=status.HTTP_200_OK)
-        except TopicVote.DoesNotExist:
+        except self.get_vote_class().DoesNotExist:
             return Response({'value': 0}, status=status.HTTP_200_OK)
 
 class TopicViewSet(viewsets.ModelViewSet, Votable):
-    queryset = Topic.objects.all()
     serializer_class = TopicSerializer
     lookup_field = 'slug'
 
