@@ -11,6 +11,11 @@ class Profile(models.Model):
     links = models.URLField(blank=True)
     slug = models.SlugField(unique=True, blank=True)
 
+    def karma(self):
+        topic_karma = self.user.topicvote_set.aggregate(total=models.Sum('value'))['total'] or 0
+        comment_karma = self.user.commentvote_set.aggregate(total=models.Sum('value'))['total'] or 0
+        return topic_karma + comment_karma
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.user.username)
@@ -39,8 +44,8 @@ class Community(models.Model):
 
     def total_view_count(self):
         total = 0
-        for topic in self.topic_set:
-            total += topic.view_count()
+        for topic in self.topic_set.all():
+            total += topic.view_count
         return total
 
     def __str__(self):
@@ -61,6 +66,16 @@ class Moderator(models.Model):
     def __str__(self):
         return f'{self.user.username} is a moderator of {self.community.name}'
 
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    information = models.TextField(null=False)
+    direct_url = models.URLField(blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f'{self.information} notification to {self.user.username}'
+
 class Topic(models.Model):
     community = models.ForeignKey(Community, on_delete=models.CASCADE)
     title = models.CharField(max_length=200, unique=True)
@@ -69,7 +84,6 @@ class Topic(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     view_count = models.IntegerField(default=0)
-    # TODO: add comment_count field so that frontend doesnt have to make recursive call to count comments
     slug = models.SlugField(unique=True, blank=True)
 
     def vote_count(self):

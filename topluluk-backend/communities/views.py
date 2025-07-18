@@ -1,17 +1,20 @@
+from asgiref.sync import async_to_sync
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import permissions, views, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from channels.layers import get_channel_layer
 
-from communities.models import Profile, Community, Topic, Moderator, Comment, TopicVote, CommentVote
+from communities.models import Profile, Community, Topic, Moderator, Comment, TopicVote, CommentVote, Subscriber, \
+    Notification
 from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser, DoesUserDontHaveProfile, \
-    IsNotAuthenticated, IsModerator
+    IsNotAuthenticated, IsModerator, IsModeratorOfTopic
 from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer, \
-    TopicSerializer, CommentSerializer
+    TopicSerializer, CommentSerializer, NotificationSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -141,18 +144,50 @@ class CommunityViewSet(viewsets.ModelViewSet):
         response = Response(serializer.data)
         return response
 
+    @action(detail=True, methods=['get'])
+    def am_i_mod(self, request, slug):
+        community = self.get_object()
+        am_i_mod = Moderator.objects.filter(user=request.user, community=community).exists()
+        return Response({'am_i_mod': am_i_mod}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def subscribe(self, request, slug):
+        community = self.get_object()
+        user = request.user
+        if Subscriber.objects.filter(user=user, community=community).exists():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        Subscriber.objects.create(user=user, community=community)
+        return Response(status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def unsubscribe(self, request, slug):
+        community = self.get_object()
+        user = request.user
+        try:
+            Subscriber.objects.get(user=user, community=community).delete()
+            return Response(status=status.HTTP_200_OK)
+        except Subscriber.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def am_i_subscribed(self, request, slug):
+        community = self.get_object()
+        user = request.user
+        result = Subscriber.objects.filter(user=user, community=community).exists()
+        return Response({'am_i_subscribed': result}, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         queryset_length = 5
         real_length = Community.objects.count()
         if real_length < 5:
             queryset_length = real_length
-        qs = Community.objects.order_by('created_date')
+        qs = Community.objects.order_by('-created_date')
         if self.action == 'list':
             return qs[:queryset_length]
         return qs
 
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action in ['create', 'am_i_mod', 'am_i_subscribed']:
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsModerator()]
@@ -161,6 +196,17 @@ class CommunityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         community = serializer.save()
         Moderator.objects.create(user=self.request.user, community=community)
+
+class Subscriptions(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        subscribes = Subscriber.objects.filter(user=user).order_by('-joined_date')
+        subscribed_communities = [subscribe.community for subscribe in subscribes]
+
+        serializer = CommunitySerializer(subscribed_communities, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class Votable:
     vote_class = None
@@ -238,17 +284,46 @@ class TopicViewSet(viewsets.ModelViewSet, Votable):
     vote_field_name = 'topic'
 
     def get_queryset(self):
-        return Topic.objects.order_by('created_date')
+        return Topic.objects.order_by('-created_date')
 
     def get_permissions(self):
         if self.action == ['create', 'up_vote', 'down_vote', 'remove_vote', 'my_vote']:
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
-            return [IsModerator()]
+            return [IsModeratorOfTopic()]
         return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        topic = serializer.save(user=self.request.user)
+        subs = Subscriber.objects.filter(community=topic.community)
+        url = serializer.data.get('url')
+
+        channel_layer = get_channel_layer()
+        for sub in subs:
+            notification = Notification.objects.create(
+                user=sub.user,
+                information='New Post on ' + topic.community.name,
+                direct_url=url
+            )
+
+            serialized = NotificationSerializer(notification, context={'request': self.request})
+
+            async_to_sync(channel_layer.group_send)(
+                f'user_{sub.user.id}',
+                {
+                    'type': 'notify',
+                    'notification': serialized.data
+                }
+            )
+
+    def retrieve(self, request, *args, **kwargs):
+        topic = self.get_object()
+        # overriding this method to see the view_count
+        topic.view_count += 1
+        topic.save()
+
+        serializer = self.get_serializer(topic)
+        return Response(serializer.data)
 
 class CommentViewSet(viewsets.ModelViewSet, Votable):
     queryset = Comment.objects.all()
@@ -265,4 +340,43 @@ class CommentViewSet(viewsets.ModelViewSet, Votable):
         return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        comment = serializer.save(user=self.request.user)
+        url = serializer.data.get('url')
+
+        channel_layer = get_channel_layer()
+        if comment.upper_comment is None:
+            user = comment.topic.user
+            notification = Notification.objects.create(
+                user=user,
+                information='Someone commented on your post!',
+                direct_url=url
+            )
+            serialized = NotificationSerializer(notification)
+            async_to_sync(channel_layer.group_send)(
+                f'user_{user.id}',
+                {
+                    'type': 'notify',
+                    'notification': serialized.data
+                }
+            )
+        else:
+            user = comment.upper_comment.user
+            notification = Notification.objects.create(
+                user=user,
+                information='Someone replied to your comment!',
+                direct_url=url
+            )
+            serialized = NotificationSerializer(notification)
+            async_to_sync(channel_layer.group_send)(
+                f'user_{user.id}',
+                {
+                    'type': 'notify',
+                    'notification': serialized.data
+                }
+            )
+
+# only for test purposes
+class NotificationViewSet(viewsets.ModelViewSet):
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]

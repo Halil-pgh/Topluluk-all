@@ -20,7 +20,7 @@ from django.conf import settings
 from rest_framework.routers import DefaultRouter
 
 from communities import views as community_views
-from communities.views import MyProfileView
+from communities.views import MyProfileView, Subscriptions
 
 router = DefaultRouter()
 router.register('profile', community_views.ProfileViewSet, basename='profile')
@@ -28,9 +28,11 @@ router.register('user', community_views.UserViewSet, basename='user')
 router.register('community', community_views.CommunityViewSet, basename='community')
 router.register('topic', community_views.TopicViewSet, basename='topic')
 router.register('comment', community_views.CommentViewSet, basename='comment')
+router.register('notification', community_views.NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('subscriptions/', Subscriptions.as_view(), name='subscriptions'),
     path('my_profile/', MyProfileView.as_view(), name='my_profile'),
     path('api/login/', community_views.LoginView.as_view(), name='login'),
     path('api/logout/', community_views.LogoutView.as_view(), name='logout'),

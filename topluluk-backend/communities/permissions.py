@@ -28,8 +28,16 @@ class IsNotAuthenticated(permissions.BasePermission):
     def has_permission(self, request, view):
         return not request.user.is_authenticated
 
+# permission for Community object
 class IsModerator(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_authenticated:
             return Moderator.objects.filter(user=request.user, community=obj).exists()
+        return False
+
+# object is treated as Topic
+class IsModeratorOfTopic(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_authenticated:
+            return Moderator.objects.filter(user=request.user, community=obj.community).exists()
         return False

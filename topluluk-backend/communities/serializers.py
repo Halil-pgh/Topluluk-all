@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from communities.models import Profile, Community, Subscriber, Moderator, Topic, Comment, TopicVote
+from communities.models import Profile, Community, Subscriber, Moderator, Topic, Comment, TopicVote, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -37,7 +37,7 @@ class ProfileSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ['url', 'user', 'display_name', 'image', 'description', 'links']
+        fields = ['url', 'user', 'display_name', 'image', 'description', 'links', 'karma']
 
 class CommunitySerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
@@ -47,7 +47,7 @@ class CommunitySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Community
-        fields = ['url', 'name', 'image', 'description', 'slug']
+        fields = ['url', 'name', 'image', 'description', 'slug', 'subscriber_count']
 
 class SubscriberSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -57,6 +57,11 @@ class SubscriberSerializer(serializers.HyperlinkedModelSerializer):
 class ModeratorSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Moderator
+        fields = '__all__'
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
         fields = '__all__'
 
 class CommentSerializer(serializers.HyperlinkedModelSerializer):
@@ -78,9 +83,6 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
         model = Comment
         fields = ['url', 'id', 'topic', 'text', 'created_date', 'user', 'vote_count', 'upper_comment', 'replies']
 
-    # TODO: i think replies should be hyperlink for optimization
-    #       change this place if data becomes large and backend becomes slow
-    #       also the way frontend works and request has to be changed
     def get_replies(self, obj):
         serializer = CommentSerializer(obj.replies.all(), many=True, context=self.context)
         return serializer.data
