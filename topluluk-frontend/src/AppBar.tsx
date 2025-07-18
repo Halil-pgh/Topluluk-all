@@ -16,14 +16,21 @@ import AdbIcon from '@mui/icons-material/Adb';
 import apiClient from './api';
 import { useAuth } from './useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Drawer, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
+import { Drawer, List, ListItem, ListItemButton, ListItemText, Popover } from '@mui/material';
+import { closeWebSocket, getWebSocket } from './websocket';
+import NotificationIconWithBadge from './NotificationWithBage';
+import NotificationPlace from './NotificationPlace';
+import { type NotificationResponse } from './responseTypes';
 
 function ResponsiveAppBar() {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+  const [anchorElNotification, setAnchorElNotification] = useState<null | HTMLElement>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const { isAuthenticated, logout } = useAuth()
   const [username, setUsername] = useState<string>('')
   const [profilePicture, setProfilePicture] = useState<string>('')
+  const [notificationCount, setNotificationCount] = useState<number>(0)
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([])
   const navigate = useNavigate()
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -57,6 +64,40 @@ function ResponsiveAppBar() {
       .catch((error) => {
         console.error(error)
       })
+
+    const ws = getWebSocket()
+    ws.onopen = () => {
+        console.log("WebSocket connected");
+        ws.send(JSON.stringify({
+          'type': 'unread_notifications',
+        }))
+    };
+
+    ws.onerror = (err) => {
+        console.error("WebSocket error", err);
+    };
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data)
+      console.log(data.payload)
+      if (data.type === 'notification') {
+        setNotificationCount(prewCount => prewCount + 1)
+        setNotifications(prewNotifications => [...prewNotifications, data.payload])
+      }
+      else if (data.type === 'unread_notifications') {
+        data.payload.map((notification: NotificationResponse) => {
+          if (!notification.is_read) {
+            setNotificationCount(prewCount => prewCount + 1)
+          }
+          setNotifications(prewNots => [...prewNots, notification])
+        })
+      }
+    }
+
+    return () => {
+      closeWebSocket()
+    }
+
   }, [isAuthenticated])
 
   const handleLogout = () => {
@@ -87,6 +128,18 @@ function ResponsiveAppBar() {
     navigate('/create_community')
   }
 
+  const handleSubscriptions = () => {
+    navigate('/subscriptions')
+  }
+
+  const handleNotification = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElNotification(anchorElNotification ? null : event.currentTarget);
+  }
+
+  const handleCloseNotification = () => {
+    setAnchorElNotification(null);
+  }
+
   const list = () => (
     <Box
       sx={{ width: 250 }}
@@ -105,11 +158,22 @@ function ResponsiveAppBar() {
             <ListItemText primary='Communities' />
           </ListItemButton>
         </ListItem>
-        <ListItem key='Create Community' disablePadding>
-          <ListItemButton onClick={handleCreateCommunity}>
-            <ListItemText primary='Create Community' />
-          </ListItemButton>
-        </ListItem>
+        {
+          (isAuthenticated &&
+            <>
+              <ListItem key='Subscriptions' disablePadding>
+                <ListItemButton onClick={handleSubscriptions}>
+                  <ListItemText primary='Subscriptions' />
+                </ListItemButton>
+              </ListItem>
+              <ListItem key='Create Community' disablePadding>
+                <ListItemButton onClick={handleCreateCommunity}>
+                  <ListItemText primary='Create Community' />
+                </ListItemButton>
+              </ListItem>
+            </>
+          )
+        }
       </List>
     </Box>
   )
@@ -148,29 +212,35 @@ function ResponsiveAppBar() {
             TOPLULUK
           </Typography>
 
-          <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
-          <Typography
-            variant="h5"
-            noWrap
-            component="a"
-            href="#app-bar-with-responsive-menu"
-            sx={{
-              mr: 2,
-              display: { xs: 'flex', md: 'none' },
-              flexGrow: 1,
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              letterSpacing: '.3rem',
-              color: 'inherit',
-              textDecoration: 'none',
-            }}
-          >
-            LOGO
-          </Typography>
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }} />
           <Box sx={{ flexGrow: 0 }}>
             { isAuthenticated ? (
               <>
+                <IconButton sx={{ mr: 2 }} onClick={handleNotification}>
+                  <NotificationIconWithBadge notificationCount={notificationCount} />
+                </IconButton>
+                <Popover
+                  open={Boolean(anchorElNotification)}
+                  anchorEl={anchorElNotification}
+                  onClose={handleCloseNotification}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  PaperProps={{
+                    sx: {
+                      maxWidth: 400,
+                      maxHeight: 600,
+                      overflow: 'auto'
+                    }
+                  }}
+                >
+                  <NotificationPlace notifications={notifications} />
+                </Popover>
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                     <Avatar alt={username} src={profilePicture} />

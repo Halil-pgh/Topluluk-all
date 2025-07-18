@@ -4,8 +4,9 @@ import apiClient from "./api"
 import ResponsiveAppBar from "./AppBar"
 import { Avatar, Box, Button, Card, CardActionArea, CardActions, CardContent, CardMedia, Container, Grid, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
 import { ArrowDownward, ArrowUpward, Comment } from "@mui/icons-material"
+import EditIcon from '@mui/icons-material/Edit';
 import { useAuth } from "./useAuth"
-import { type TopicResponse } from './responseTypes'
+import { formatDate, type TopicResponse } from './responseTypes'
 import { calcualteCommentCount, topicResponseToTopic, type Topic } from './Topic'
 
 interface Community {
@@ -17,6 +18,7 @@ function Community() {
     const { slug } = useParams<{ slug: string }>()
     const [topics, setTopics] = useState<Topic[]>([])
     const [community, setCommunity] = useState<Community>()
+    const [amIMod, setAmIMod] = useState<boolean>(false)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string>('')
     const { isAuthenticated } = useAuth()
@@ -25,7 +27,14 @@ function Community() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await apiClient.get(`/community/${slug}/topics/`)
+                setAmIMod((await apiClient.get(`community/${slug}/am_i_mod/`)).data.am_i_mod)
+            } catch (error) {
+                console.error(error)
+            }
+
+
+            try {
+                const response = await apiClient.get(`community/${slug}/topics/`)
                 const topicsResponse = response.data
 
                 const topicPromises = topicsResponse.map(async (topicResponse: TopicResponse) => {
@@ -61,6 +70,11 @@ function Community() {
         if (!(e.target instanceof HTMLButtonElement)) {
             navigate(`/communities/${slug}/${topicSlug}`)
         }
+    }
+
+    function handleEdit() {
+        // navigate to edit page
+        navigate(`/edit/community/${slug}`)
     }
 
     function handleVote(topicSlug: string, newVote: number) {
@@ -116,6 +130,13 @@ function Community() {
                         <Typography variant="h3" component="h1">
                             {community.name}
                         </Typography>
+                        {
+                        (amIMod && 
+                            <IconButton sx={{ alignContent: 'center'}} onClick={handleEdit} aria-label="EditIcon">
+                                <EditIcon />
+                            </IconButton>
+                        )
+                        }
                     </Box>
                     )
                 }
@@ -150,7 +171,7 @@ function Community() {
                                             {topic.profile.username}
                                         </Typography>
                                         <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
-                                            {topic.createdDate.slice(0, 10)}
+                                            {formatDate(topic.createdDate)}
                                         </Typography>
                                     </Box>
 

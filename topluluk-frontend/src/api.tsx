@@ -1,6 +1,6 @@
 import axios, { type AxiosError } from "axios";
 
-const API_URL = 'http://localhost:8000/'
+export const API_URL = 'http://localhost:8000/'
 
 interface FailedQueuePromise {
     resolve: (value?: void) => void;

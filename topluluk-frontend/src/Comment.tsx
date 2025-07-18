@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { CommentResponse } from "./responseTypes"
+import { formatDate, type CommentResponse } from "./responseTypes"
 import apiClient from "./api"
 import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
 import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore } from "@mui/icons-material"
@@ -74,7 +74,7 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
                             {userProfile?.username}
                         </Typography>
                         <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
-                            {comment.created_date.slice(0, 10)}
+                            {formatDate(comment.created_date)}
                         </Typography>
                     </Box>
                     <Typography variant="body2" sx={{ mb: 1 }}>

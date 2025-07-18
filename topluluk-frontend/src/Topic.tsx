@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { type CommentResponse, type TopicResponse } from "./responseTypes"
-import { useParams, useNavigate } from "react-router-dom"
+import { formatDate, type CommentResponse, type TopicResponse } from "./responseTypes"
+import { useParams } from "react-router-dom"
 import apiClient from "./api"
 import { useAuth } from "./useAuth"
 import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
@@ -214,7 +214,7 @@ function Topic() {
                             {topic.profile.username}
                         </Typography>
                         <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
-                            {topic.createdDate.slice(0, 10)}
+                            {formatDate(topic.createdDate)}
                         </Typography>
                     </Box>
 

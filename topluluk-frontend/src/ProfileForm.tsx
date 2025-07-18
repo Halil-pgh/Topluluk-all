@@ -36,13 +36,6 @@ function ProfileForm() {
             }
         }
         requestProfile()
-
-        // vs
-
-        // apiClient.get('my_profile/')
-        //     .then((response) => {
-        //         response
-        //     })
     }, [isAuthenticated])
 
     function handleMainMenu() {
@@ -79,6 +72,12 @@ function ProfileForm() {
             setError('Failed to update profile')
             console.error(error)
         }
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <Box></Box>
+        )
     }
 
     return (
