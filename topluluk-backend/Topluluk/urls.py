@@ -32,6 +32,7 @@ router.register('notification', community_views.NotificationViewSet, basename='n
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('stats/', include('stats.urls')),
     path('subscriptions/', Subscriptions.as_view(), name='subscriptions'),
     path('my_profile/', MyProfileView.as_view(), name='my_profile'),
     path('api/login/', community_views.LoginView.as_view(), name='login'),
