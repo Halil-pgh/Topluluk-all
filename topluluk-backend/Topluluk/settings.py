@@ -43,11 +43,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'communities.apps.CommunitiesConfig',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'communities.apps.CommunitiesConfig',
+    'stats.apps.StatsConfig',
 ]
 
 MIDDLEWARE = [
@@ -106,7 +107,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('redis', 6379)]
+            'hosts': [('topluluk_redis', 6379)]
         }
     }
 }

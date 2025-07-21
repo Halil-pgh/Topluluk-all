@@ -26,7 +26,7 @@ def get_user_from_token(token):
     except Exception:
         return AnonymousUser()
 
-class JWTAuthFromCookieMiddleware(BaseMiddleware):
+class JWTAuthMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
         headers = dict(scope['headers'])
         cookies_raw = headers.get(b'cookie', b'').decode()
@@ -36,6 +36,3 @@ class JWTAuthFromCookieMiddleware(BaseMiddleware):
         scope['user'] = await get_user_from_token(access_token) if access_token else AnonymousUser()
 
         return await super().__call__(scope, receive, send)
-
-def JWTAuthMiddlewareStack(inner):
-    return JWTAuthFromCookieMiddleware(inner)

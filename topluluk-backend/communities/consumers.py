@@ -9,7 +9,8 @@ from communities.serializers import NotificationSerializer
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         if not self.scope['user'].is_authenticated:
-            self.close(code=4001)
+            await self.close(code=4001)
+            return
 
         self.group_name = f"user_{self.scope['user'].id}"
 
@@ -26,6 +27,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+    # does not return unread notifications
+    # returns all notifications lol
     @database_sync_to_async
     def get_unread_notifications(self, user):
         return list(Notification.objects.filter(user=user).order_by('-created_date'))
