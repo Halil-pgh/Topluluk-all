@@ -29,6 +29,7 @@ router.register('community', community_views.CommunityViewSet, basename='communi
 router.register('topic', community_views.TopicViewSet, basename='topic')
 router.register('comment', community_views.CommentViewSet, basename='comment')
 router.register('notification', community_views.NotificationViewSet, basename='notification')
+router.register('ban', community_views.BanViewSet, basename='ban')
 
 urlpatterns = [
     path('', include(router.urls)),

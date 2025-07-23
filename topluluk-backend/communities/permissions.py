@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-from communities.models import Profile, Moderator
+from communities.models import Profile, Moderator, Ban, Topic, Comment
 
 
 class IsOwnerOrReadonly(permissions.BasePermission):
@@ -35,9 +35,48 @@ class IsModerator(permissions.BasePermission):
             return Moderator.objects.filter(user=request.user, community=obj).exists()
         return False
 
+class IsModeratorOfComment(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if not isinstance(obj, Comment):
+            return False
+        if request.user.is_authenticated:
+            return Moderator.objects.filter(user=request.user, community=obj.topic.community).exists()
+        return False
+
 # object is treated as Topic
 class IsModeratorOfTopic(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_authenticated:
             return Moderator.objects.filter(user=request.user, community=obj.community).exists()
         return False
+
+# same as Topic but for Ban
+class IsModeratorOfBan(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_authenticated:
+            # prevent the user trying to ban himself
+            if obj.user.id == request.user.id:
+                return False
+            return Moderator.objects.filter(user=request.user, community=obj.community).exists()
+        return False
+
+class IsNotBannedFromCommunity(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        community = None
+        if isinstance(obj, Topic):
+            community = obj.community
+        elif isinstance(obj, Comment):
+            community = obj.topic.community
+        else:
+            print('Not handled type for Ban Permission')
+        if request.user.is_authenticated:
+            bans = Ban.objects.filter(user=request.user, community=community)
+            if bans.exists():
+                any_ban_active = False
+                for ban in bans:
+                    if ban.is_active():
+                        any_ban_active = True
+                        break
+                return not any_ban_active
+            return True
+        return True

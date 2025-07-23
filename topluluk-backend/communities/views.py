@@ -10,11 +10,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from channels.layers import get_channel_layer
 
 from communities.models import Profile, Community, Topic, Moderator, Comment, TopicVote, CommentVote, Subscriber, \
-    Notification
+    Notification, Ban
 from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser, DoesUserDontHaveProfile, \
-    IsNotAuthenticated, IsModerator, IsModeratorOfTopic
+    IsNotAuthenticated, IsModerator, IsModeratorOfTopic, IsModeratorOfBan, \
+    IsNotBannedFromCommunity, IsModeratorOfComment
 from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer, \
-    TopicSerializer, CommentSerializer, NotificationSerializer
+    TopicSerializer, CommentSerializer, NotificationSerializer, BanSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -176,6 +177,11 @@ class CommunityViewSet(viewsets.ModelViewSet):
         result = Subscriber.objects.filter(user=user, community=community).exists()
         return Response({'am_i_subscribed': result}, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['get'])
+    def am_i_banned(self, request, slug):
+        result = Ban.objects.filter(user=request.user, community=self.get_object()).exists()
+        return Response({'am_i_banned': result}, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         queryset_length = 5
         real_length = Community.objects.count()
@@ -187,7 +193,7 @@ class CommunityViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_permissions(self):
-        if self.action in ['create', 'am_i_mod', 'am_i_subscribed']:
+        if self.action == ['create', 'am_i_mod', 'am_i_subscribed']:
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsModerator()]
@@ -283,11 +289,19 @@ class TopicViewSet(viewsets.ModelViewSet, Votable):
     vote_class = TopicVote
     vote_field_name = 'topic'
 
+    @action(detail=True, methods=['get'])
+    def am_i_banned(self, request, slug):
+        topic = self.get_object()
+        result = Ban.objects.filter(user=request.user, community=topic.community).exists()
+        return Response({'am_i_banned': result}, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         return Topic.objects.order_by('-created_date')
 
     def get_permissions(self):
-        if self.action == ['create', 'up_vote', 'down_vote', 'remove_vote', 'my_vote']:
+        if self.action in ['create', 'up_vote', 'down_vote', 'remove_vote']:
+            return [permissions.IsAuthenticated(), IsNotBannedFromCommunity()]
+        if self.action in ['my_vote', 'am_i_banned']:
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsModeratorOfTopic()]
@@ -336,7 +350,7 @@ class CommentViewSet(viewsets.ModelViewSet, Votable):
         if self.action == ['create', 'up_vote', 'down_vote', 'remove_vote', 'my_vote']:
             return [permissions.IsAuthenticated()]
         if self.action in ['update', 'partial_update', 'destroy']:
-            return [IsModerator()]
+            return [IsModeratorOfComment()]
         return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
@@ -374,6 +388,35 @@ class CommentViewSet(viewsets.ModelViewSet, Votable):
                     'notification': serialized.data
                 }
             )
+
+class BanViewSet(viewsets.ModelViewSet):
+    queryset = Ban.objects.all()
+    serializer_class = BanSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'partial_update', 'update', 'destroy']:
+            return [IsModeratorOfBan()]
+        else:
+            return [permissions.IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        ban = serializer.save()
+        url = serializer.data.get('url')
+        user = ban.user
+        notification = Notification.objects.create(
+            user=user,
+            information='You have been banned from a community',
+            direct_url=url
+        )
+        serialized = NotificationSerializer(notification)
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'user_{user.id}',
+            {
+                'type': 'notify',
+                'notification': serialized.data
+            }
+        )
 
 # only for test purposes
 class NotificationViewSet(viewsets.ModelViewSet):

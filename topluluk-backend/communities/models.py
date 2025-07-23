@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils.text import slugify
+from django.utils import timezone
 
 
 class Profile(models.Model):
@@ -145,3 +146,17 @@ class CommentVote(VoteBase):
 
     def __str__(self):
         return f'{self.user.username} voted {self.value} on "{self.comment.text}" comment.'
+
+class Ban(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    community = models.ForeignKey(Community, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    def is_active(self):
+        if self.expires_at:
+            return timezone.now() < self.expires_at
+        return True
+
+    def __str__(self):
+        return f'{self.user.username} is banned from {self.community.name}.'

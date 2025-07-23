@@ -1,3 +1,5 @@
+from email.policy import default
+
 from django.db.models import Count, ExpressionWrapper, F, Sum
 from django.db.models.fields import IntegerField
 from rest_framework import views, status
@@ -25,6 +27,14 @@ class MostSubscribedCommunities(views.APIView):
         result = Community.objects.annotate(
             number_of_subscribers=Count('subscriber')
         ).order_by('-number_of_subscribers')[:4]
+        serializer = CommunitySerializer(result, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class MostViewedCommunities(views.APIView):
+    def get(self, request):
+        result = Community.objects.annotate(
+            total=Sum('topic__view_count', default=0)
+        ).order_by('-total')
         serializer = CommunitySerializer(result, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 

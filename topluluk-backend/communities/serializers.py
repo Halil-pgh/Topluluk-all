@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from communities.models import Profile, Community, Subscriber, Moderator, Topic, Comment, TopicVote, Notification
+from communities.models import Profile, Community, Subscriber, Moderator, Topic, Comment, TopicVote, Notification, Ban
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -47,7 +47,7 @@ class CommunitySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Community
-        fields = ['url', 'name', 'image', 'description', 'slug', 'subscriber_count']
+        fields = ['url', 'name', 'image', 'description', 'slug', 'subscriber_count', 'total_view_count']
 
 class SubscriberSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -111,3 +111,22 @@ class TopicSerializer(serializers.HyperlinkedModelSerializer):
     def get_comments(self, obj):
         top_comments = obj.comments.filter(upper_comment__isnull=True).order_by('created_date')
         return CommentSerializer(top_comments, many=True, read_only=True, context=self.context).data
+
+
+class BanSerializer(serializers.HyperlinkedModelSerializer):
+    community = serializers.HyperlinkedRelatedField(
+        queryset=Community.objects.all(),
+        view_name='community-detail',
+        lookup_field='slug'
+    )
+    user = serializers.HyperlinkedRelatedField(
+        queryset=User.objects.all(),
+        view_name='user-detail',
+    )
+    url = serializers.HyperlinkedIdentityField(
+        view_name='ban-detail',
+    )
+
+    class Meta:
+        model = Ban
+        fields = ['url', 'user', 'community', 'created_at', 'expires_at', 'is_active']
