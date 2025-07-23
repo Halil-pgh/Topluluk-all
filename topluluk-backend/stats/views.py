@@ -13,7 +13,8 @@ class HotTopics(views.APIView):
     # today`s hot topics
     def get(self, request):
         result = Topic.objects.annotate(
-            vote_count=Count('topicvote'),
+            vote_count=Sum('topicvote__value'),
+            view_count=Count('topicclick'),
             score=ExpressionWrapper(
                 F('view_count') + F('vote_count') * 5,
                 output_field=IntegerField()
@@ -33,7 +34,7 @@ class MostSubscribedCommunities(views.APIView):
 class MostViewedCommunities(views.APIView):
     def get(self, request):
         result = Community.objects.annotate(
-            total=Sum('topic__view_count', default=0)
+            total=Count('communityclick')
         ).order_by('-total')
         serializer = CommunitySerializer(result, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)

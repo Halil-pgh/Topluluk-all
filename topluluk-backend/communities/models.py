@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
 from django.utils import timezone
@@ -44,9 +45,9 @@ class Community(models.Model):
         return self.subscriber_set.count()
 
     def total_view_count(self):
-        total = 0
+        total = self.communityclick_set.count()
         for topic in self.topic_set.all():
-            total += topic.view_count
+            total += topic.view_count()
         return total
 
     def __str__(self):
@@ -84,8 +85,10 @@ class Topic(models.Model):
     image = models.ImageField(upload_to='topic_images/', null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    view_count = models.IntegerField(default=0)
     slug = models.SlugField(unique=True, blank=True)
+
+    def view_count(self):
+        return self.topicclick_set.count()
 
     def vote_count(self):
         return self.topicvote_set.aggregate(total=models.Sum('value'))['total'] or 0
@@ -146,6 +149,25 @@ class CommentVote(VoteBase):
 
     def __str__(self):
         return f'{self.user.username} voted {self.value} on "{self.comment.text}" comment.'
+
+class ClickBase(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+
+class TopicClick(ClickBase):
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.user.username} has clicked to {self.topic.title} topic'
+
+class CommunityClick(ClickBase):
+    community = models.ForeignKey(Community, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.user.username} has clicked to {self.community.name} community'
 
 class Ban(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -1,6 +1,12 @@
+import datetime
+
 from asgiref.sync import async_to_sync
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.core.serializers import serialize
+from django.db.models import Q, Count, ExpressionWrapper, F
+from django.db.models.fields import IntegerField
+from django.utils import timezone
 from rest_framework import permissions, views, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404
@@ -10,7 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from channels.layers import get_channel_layer
 
 from communities.models import Profile, Community, Topic, Moderator, Comment, TopicVote, CommentVote, Subscriber, \
-    Notification, Ban
+    Notification, Ban, TopicClick, CommunityClick
 from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser, DoesUserDontHaveProfile, \
     IsNotAuthenticated, IsModerator, IsModeratorOfTopic, IsModeratorOfBan, \
     IsNotBannedFromCommunity, IsModeratorOfComment
@@ -134,9 +140,44 @@ class MyProfileView(RetrieveUpdateAPIView):
     def get_object(self):
         return Profile.objects.get(user=self.request.user)
 
-class CommunityViewSet(viewsets.ModelViewSet):
+class Clickable:
+    click_class = None
+    click_field = None
+
+    def get_click_class(self):
+        return self.click_class
+
+    def get_click_field(self):
+        return self.click_field
+
+    def retrieve(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        def create_click():
+            self.get_click_class().objects.create(
+                user=request.user,
+                **{self.get_click_field(): obj}
+            )
+            print(f'created click for {self.click_field}')
+
+        if request.user.is_authenticated:
+            already = self.get_click_class().objects.filter(user=request.user, **{self.get_click_field(): obj})
+            if already.exists():
+                last = already[len(already) - 1]
+                if timezone.now() - last.created_date >= datetime.timedelta(hours=1):
+                    create_click()
+            else:
+                create_click()
+
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data)
+
+class CommunityViewSet(Clickable, viewsets.ModelViewSet):
     serializer_class = CommunitySerializer
     lookup_field = 'slug'
+
+    click_class = CommunityClick
+    click_field = 'community'
 
     @action(detail=True, methods=['get'])
     def topics(self, request, slug):
@@ -282,12 +323,15 @@ class Votable:
         except self.get_vote_class().DoesNotExist:
             return Response({'value': 0}, status=status.HTTP_200_OK)
 
-class TopicViewSet(viewsets.ModelViewSet, Votable):
+class TopicViewSet(Clickable, Votable, viewsets.ModelViewSet):
     serializer_class = TopicSerializer
     lookup_field = 'slug'
 
     vote_class = TopicVote
     vote_field_name = 'topic'
+
+    click_class = TopicClick
+    click_field = 'topic'
 
     @action(detail=True, methods=['get'])
     def am_i_banned(self, request, slug):
@@ -330,16 +374,7 @@ class TopicViewSet(viewsets.ModelViewSet, Votable):
                 }
             )
 
-    def retrieve(self, request, *args, **kwargs):
-        topic = self.get_object()
-        # overriding this method to see the view_count
-        topic.view_count += 1
-        topic.save()
-
-        serializer = self.get_serializer(topic)
-        return Response(serializer.data)
-
-class CommentViewSet(viewsets.ModelViewSet, Votable):
+class CommentViewSet(Votable, viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
 
@@ -417,6 +452,30 @@ class BanViewSet(viewsets.ModelViewSet):
                 'notification': serialized.data
             }
         )
+
+class SearchAPI(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        query = request.query_params.get('q', None)
+        if query is None:
+            return Response([], status=status.HTTP_200_OK)
+
+        search_results = Topic.objects.filter(
+            Q(title__icontains=query) |
+            Q(text__icontains=query) |
+            Q(comments__text__icontains=query)
+        ).distinct().annotate(
+            vote_count=Count('topicvote'),
+            view_count=Count('topicclick'),
+            score=ExpressionWrapper(
+                F('vote_count') + F('view_count'),
+                output_field=IntegerField()
+            )
+        ).order_by('-score')[:5]
+
+        serializer = TopicSerializer(search_results, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 # only for test purposes
 class NotificationViewSet(viewsets.ModelViewSet):

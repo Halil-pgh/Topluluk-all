@@ -20,7 +20,7 @@ from django.conf import settings
 from rest_framework.routers import DefaultRouter
 
 from communities import views as community_views
-from communities.views import MyProfileView, Subscriptions
+from communities.views import MyProfileView, Subscriptions, SearchAPI
 
 router = DefaultRouter()
 router.register('profile', community_views.ProfileViewSet, basename='profile')
@@ -34,6 +34,7 @@ router.register('ban', community_views.BanViewSet, basename='ban')
 urlpatterns = [
     path('', include(router.urls)),
     path('stats/', include('stats.urls')),
+    path('search/', SearchAPI.as_view(), name='search'),
     path('subscriptions/', Subscriptions.as_view(), name='subscriptions'),
     path('my_profile/', MyProfileView.as_view(), name='my_profile'),
     path('api/login/', community_views.LoginView.as_view(), name='login'),
