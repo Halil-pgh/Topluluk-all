@@ -21,6 +21,7 @@ import { closeWebSocket, getWebSocket } from './websocket';
 import NotificationIconWithBadge from './NotificationWithBage';
 import NotificationPlace from './NotificationPlace';
 import { type NotificationResponse } from './responseTypes';
+import SearchBox from './SearchBox';
 
 function ResponsiveAppBar() {
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -210,6 +211,15 @@ function ResponsiveAppBar() {
           >
             TOPLULUK
           </Typography>
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          <Box sx={{ 
+            width: { xs: 200, sm: 300, md: 400 },
+            mx: 2
+          }}>
+            <SearchBox />
+          </Box>
 
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }} />
           <Box sx={{ flexGrow: 0 }}>
