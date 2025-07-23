@@ -2,8 +2,8 @@ import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import apiClient from "./api"
 import ResponsiveAppBar from "./AppBar"
-import { Avatar, Box, Button, Card, CardActionArea, CardActions, CardContent, CardMedia, Container, Grid, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
-import { ArrowDownward, ArrowUpward, Comment } from "@mui/icons-material"
+import { Avatar, Box, Button, Card, CardActionArea, CardActions, CardContent, CardMedia, Container, Grid, IconButton, ToggleButton, ToggleButtonGroup, Typography, Menu, MenuItem } from "@mui/material"
+import { ArrowDownward, ArrowUpward, Comment, Delete, Block } from "@mui/icons-material"
 import EditIcon from '@mui/icons-material/Edit';
 import { useAuth } from "./useAuth"
 import { formatDate, type TopicResponse } from './responseTypes'
@@ -21,6 +21,8 @@ function Community() {
     const [amIMod, setAmIMod] = useState<boolean>(false)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string>('')
+    const [banMenuAnchor, setBanMenuAnchor] = useState<{ [key: string]: HTMLElement | null }>({})
+    const [amIBanned, setAmIBanned] = useState<boolean>(false)
     const { isAuthenticated } = useAuth()
     const navigate = useNavigate()
 
@@ -32,6 +34,11 @@ function Community() {
                 console.error(error)
             }
 
+            try {
+                setAmIBanned((await apiClient.get(`community/${slug}/am_i_banned/`)).data.am_i_banned)
+            } catch (error) {
+                console.error(error)
+            }
 
             try {
                 const response = await apiClient.get(`community/${slug}/topics/`)
@@ -78,7 +85,7 @@ function Community() {
     }
 
     function handleVote(topicSlug: string, newVote: number) {
-        if (!isAuthenticated)
+        if (!isAuthenticated || amIBanned)
             return
 
         const topicIndex = topics.findIndex(t => t.slug === topicSlug)
@@ -112,6 +119,52 @@ function Community() {
         } catch (err) {
             setError('Failed to update votes')
             console.error(err)
+        }
+    }
+
+    const banOptions = [
+        { label: 'Permanent Ban', days: null },
+        { label: '1 Year Ban', days: 365 },
+        { label: '1 Month Ban', days: 30 },
+        { label: '1 Day Ban', days: 1 }
+    ]
+
+    function handleBanMenuOpen(topicSlug: string, event: React.MouseEvent<HTMLElement>) {
+        setBanMenuAnchor(prev => ({ ...prev, [topicSlug]: event.currentTarget }))
+    }
+
+    function handleBanMenuClose(topicSlug: string) {
+        setBanMenuAnchor(prev => ({ ...prev, [topicSlug]: null }))
+    }
+
+    async function handleBan(topicSlug: string, days: number | null) {
+        try {
+            const topic = topics.find(t => t.slug === topicSlug)
+            if (!topic) return
+
+            const expirationDate = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() : null
+            const user = (await apiClient.get(topic.profile.url)).data.user
+
+            await apiClient.post('/ban/', {
+                user: user,
+                community: topic.community,
+                expires_at: expirationDate
+            })
+        } catch (error) {
+            setError('Failed to ban user')
+            console.error(error)
+        } finally {
+            handleBanMenuClose(topicSlug)
+        }
+    }
+
+    async function handleRemove(topicSlug: string) {
+        try {
+            await apiClient.delete(`/topic/${topicSlug}/`)
+            setTopics(prev => prev.filter(t => t.slug !== topicSlug))
+        } catch (error) {
+            setError('Failed to remove topic')
+            console.error(error)
         }
     }
 
@@ -207,8 +260,11 @@ function Community() {
                                         value={topic.vote}
                                         exclusive
                                         onChange={(e, newVote) => {
-                                            handleVote(topic.slug, newVote);
+                                            if (!amIBanned) {
+                                                handleVote(topic.slug, newVote);
+                                            }
                                         }}
+                                        disabled={amIBanned}
                                         aria-label="text aligment"
                                     >
                                         <ToggleButton value={1} aria-label="upvote">
@@ -219,19 +275,68 @@ function Community() {
                                         </ToggleButton>
                                     </ToggleButtonGroup>
                                     <Typography variant="body1" sx={{ px: 1 }}>{topic.voteCount}</Typography>
-                                    <IconButton onClick={(e) => handleTopic(e, topic.slug)} aria-label="comment">
+                                    <IconButton 
+                                        onClick={(e) => handleTopic(e, topic.slug)} 
+                                        aria-label="comment"
+                                        disabled={amIBanned}
+                                    >
                                         <Comment />
                                     </IconButton>
-                                    <Typography variant="body2"  sx={{ mr: 'auto' }}>{calcualteCommentCount(topic.comments)}</Typography>
+                                    <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(topic.comments)}</Typography>
+                                    
+                                    {amIMod && (
+                                        <>
+                                            <IconButton 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleBanMenuOpen(topic.slug, e);
+                                                }} 
+                                                aria-label="ban user"
+                                                color="warning"
+                                            >
+                                                <Block />
+                                            </IconButton>
+                                            <Menu
+                                                anchorEl={banMenuAnchor[topic.slug]}
+                                                open={Boolean(banMenuAnchor[topic.slug])}
+                                                onClose={() => handleBanMenuClose(topic.slug)}
+                                            >
+                                                {banOptions.map((option, index) => (
+                                                    <MenuItem 
+                                                        key={index} 
+                                                        onClick={() => handleBan(topic.slug, option.days)}
+                                                    >
+                                                        {option.label}
+                                                    </MenuItem>
+                                                ))}
+                                            </Menu>
+                                            <IconButton 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemove(topic.slug);
+                                                }} 
+                                                aria-label="remove topic"
+                                                color="error"
+                                            >
+                                                <Delete />
+                                            </IconButton>
+                                        </>
+                                    )}
                                 </CardActions>
                             </Card>
                         </Grid>
                     ))}
                 </Grid>
                 {!loading &&
-                    <Button type="button" variant="contained" onClick={handleCreateTopic} sx={{
-                        mt:3
-                    }}>
+                    <Button 
+                        type="button" 
+                        variant="contained" 
+                        onClick={handleCreateTopic} 
+                        disabled={amIBanned}
+                        sx={{
+                            mt:3
+                        }}
+                    >
                         Ask a question
                     </Button>
                 }

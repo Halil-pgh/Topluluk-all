@@ -25,11 +25,20 @@ function NotificationPlace({ notifications }: NotificationPlaceProp) {
                 const topicSlug = response.data.slug
                 const raw = response.data.community.split('/')
                 const communitySlug = raw[raw.length - 2]
-                navigate(`/communities/${communitySlug}/${topicSlug}`)
+                // ban notification
+                if (topicSlug === undefined)
+                    navigate(`/communities/${communitySlug}`)
+                // topic notification
+                else
+                    navigate(`/communities/${communitySlug}/${topicSlug}`)
             }
             // comment notification
             else {
-                // TODO: do later
+                const topicResponse = await apiClient.get(response.data.topic)
+                const topicSlug = topicResponse.data.slug
+                const raw = topicResponse.data.community.split('/')
+                const communitySlug = raw[raw.length - 2]
+                navigate(`/communities/${communitySlug}/${topicSlug}`)
             }
         } catch (err) {
             console.error(err)

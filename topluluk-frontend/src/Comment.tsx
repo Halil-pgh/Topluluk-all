@@ -1,25 +1,32 @@
 import { useEffect, useState } from "react"
 import { formatDate, type CommentResponse } from "./responseTypes"
 import apiClient from "./api"
-import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
-import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore } from "@mui/icons-material"
+import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, ToggleButton, ToggleButtonGroup, Typography, Menu, MenuItem } from "@mui/material"
+import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore, Delete, Block } from "@mui/icons-material"
 import { calcualteCommentCount } from "./Topic"
 import CreateCommentForm from "./CreateCommentForm"
 import { useAuth } from "./useAuth"
+import { useParams } from "react-router-dom"
 
 interface CommentProps {
     topicUrl: string
     commentResponse: CommentResponse
     depth?: number
     onVote: (commentUrl: string, newVote: number) => void
+    amIBanned: boolean
+    amIMod?: boolean
+    onCommentDeleted?: (commentId: number) => void
 }
 
-function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: CommentProps) {
+function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBanned, amIMod = false, onCommentDeleted }: CommentProps) {
     const [showReplyForm, setShowReplyForm] = useState(false)
     const [expanded, setExpanded] = useState(false)
-    const [userProfile, setUserProfile] = useState<{ username: string, image: string } | null>(null)
+    const [userProfile, setUserProfile] = useState<{ username: string, image: string, url: string } | null>(null)
     const [comment, setComment] = useState<CommentResponse>(commentResponse)
+    const [banMenuAnchor, setBanMenuAnchor] = useState<HTMLElement | null>(null)
+    const [error, setError] = useState<string>('')
     const { isAuthenticated } = useAuth()
+    const { communitySlug } = useParams()
 
     useEffect(() => {
         const fetchData = async () => {
@@ -28,7 +35,8 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
                 const profileResponse = await apiClient.get(`${comment.user}profile/`)
                 setUserProfile({
                     username: userResponse.data.username,
-                    image: profileResponse.data.profile.image
+                    image: profileResponse.data.profile.image,
+                    url: profileResponse.data.profile.url
                 })
                 if (isAuthenticated) {
                     const commentVote = await apiClient.get(`${comment.url}my_vote/`)
@@ -48,6 +56,7 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
     }
 
     const handleCreateComment = () => {
+        if (amIBanned) return
         setShowReplyForm(true)
     }
 
@@ -57,6 +66,59 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
         // TODO: NOT do this
         // instead, should look for what is being changed
         window.location.reload()
+    }
+
+    const banOptions = [
+        { label: 'Permanent Ban', days: null },
+        { label: '1 Year Ban', days: 365 },
+        { label: '1 Month Ban', days: 30 },
+        { label: '1 Day Ban', days: 1 }
+    ]
+
+    function handleBanMenuOpen(event: React.MouseEvent<HTMLElement>) {
+        setBanMenuAnchor(event.currentTarget)
+    }
+
+    function handleBanMenuClose() {
+        setBanMenuAnchor(null)
+    }
+
+    async function handleBan(days: number | null) {
+        if (!userProfile) return
+
+        try {
+            const expirationDate = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() : null
+            const user = (await apiClient.get(userProfile.url)).data.user
+
+            // Get community URL from topic
+            const topicResponse = await apiClient.get(topicUrl)
+            const communityUrl = topicResponse.data.community
+
+            await apiClient.post('/ban/', {
+                user: user,
+                community: communityUrl,
+                expires_at: expirationDate
+            })
+        } catch (error) {
+            setError('Failed to ban user')
+            console.error(error)
+        } finally {
+            handleBanMenuClose()
+        }
+    }
+
+    async function handleRemove() {
+        try {
+            await apiClient.delete(`comment/${comment.id}/`)
+            if (onCommentDeleted) {
+                onCommentDeleted(comment.id)
+            }
+            // For now, reload the page - TODO: implement proper state management
+            window.location.reload()
+        } catch (error) {
+            setError('Failed to remove comment')
+            console.error(error)
+        }
     }
 
     return (
@@ -80,6 +142,11 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
                     <Typography variant="body2" sx={{ mb: 1 }}>
                         {comment.text}
                     </Typography>
+                    {error && (
+                        <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+                            {error}
+                        </Typography>
+                    )}
                 </CardContent>
                 <CardActions sx={{ pt: 0, justifyContent: 'space-between' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -88,8 +155,11 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
                             exclusive
                             size="small"
                             onChange={(e, newVote) => {
-                                onVote(comment.url, newVote);
+                                if (!amIBanned) {
+                                    onVote(comment.url, newVote);
+                                }
                             }}
+                            disabled={amIBanned}
                             aria-label="comment voting"
                         >
                             <ToggleButton value={1} aria-label="upvote">
@@ -100,12 +170,60 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
                             </ToggleButton>
                         </ToggleButtonGroup>
                         <Typography variant="body2" sx={{ px: 1 }}>{comment.vote_count}</Typography>
-                        <IconButton aria-label="comment">
+                        <IconButton 
+                            aria-label="comment"
+                            disabled={amIBanned}
+                        >
                             <Comment />
                         </IconButton>
                         <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(comment.replies)}</Typography>
 
-                        <Button onClick={handleCreateComment} sx={{ ml: 2 }}>Reply</Button>
+                        {isAuthenticated && !amIBanned && (
+                            <Button onClick={handleCreateComment} sx={{ ml: 2 }}>Reply</Button>
+                        )}
+
+                        {amIMod && (
+                            <>
+                                <IconButton 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleBanMenuOpen(e);
+                                    }} 
+                                    aria-label="ban user"
+                                    color="warning"
+                                    size="small"
+                                    sx={{ ml: 4 }}
+                                >
+                                    <Block fontSize="small" />
+                                </IconButton>
+                                <Menu
+                                    anchorEl={banMenuAnchor}
+                                    open={Boolean(banMenuAnchor)}
+                                    onClose={handleBanMenuClose}
+                                >
+                                    {banOptions.map((option, index) => (
+                                        <MenuItem 
+                                            key={index} 
+                                            onClick={() => handleBan(option.days)}
+                                        >
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
+                                </Menu>
+                                <IconButton 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemove();
+                                    }} 
+                                    aria-label="remove comment"
+                                    color="error"
+                                    size="small"
+                                    sx={{ ml: 4 }}
+                                >
+                                    <Delete fontSize="small" />
+                                </IconButton>
+                            </>
+                        )}
                     </Box>
                     {comment.replies.length > 0 && (
                         <Button
@@ -134,10 +252,14 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote }: Comm
 
         {expanded && comment.replies.map((reply) => (
             <CommentComponent
+                key={reply.id}
                 topicUrl={topicUrl}
                 commentResponse={reply}
                 depth={depth + 1}
                 onVote={onVote}
+                amIBanned={amIBanned}
+                amIMod={amIMod}
+                onCommentDeleted={onCommentDeleted}
             />
         ))}
         </>

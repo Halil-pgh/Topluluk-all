@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react"
 import { formatDate, type CommentResponse, type TopicResponse } from "./responseTypes"
-import { useParams } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import apiClient from "./api"
 import { useAuth } from "./useAuth"
-import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material"
+import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography, Menu, MenuItem } from "@mui/material"
 import ResponsiveAppBar from "./AppBar"
-import { ArrowDownward, ArrowUpward, Comment } from "@mui/icons-material"
+import { ArrowDownward, ArrowUpward, Comment, Delete, Block } from "@mui/icons-material"
 import CommentComponent from './Comment'
 import CreateCommentForm from "./CreateCommentForm"
 
@@ -17,6 +17,7 @@ export interface Profile {
 
 export interface Topic {
     url: string,
+    community: string, // community url
     title: string,
     text: string,
     image: string,
@@ -35,6 +36,7 @@ export const topicResponseToTopic = async (topicResponse: TopicResponse, isAuthe
     const voteResponse = isAuthenticated ? await apiClient.get(`${topicResponse.url}my_vote/`) : { data: { value: 0 }}
     const topic: Topic = {
         url: topicResponse.url,
+        community: topicResponse.community,
         title: topicResponse.title,
         text: topicResponse.text,
         image: topicResponse.image,
@@ -67,16 +69,33 @@ export function calcualteCommentCount(comments: CommentResponse[]): number {
 function Topic() {
     const { isAuthenticated } = useAuth()
     const { communitySlug, topicSlug } = useParams()
+    const navigate = useNavigate()
     const [topic, setTopic] = useState<Topic>()
     const [showReplyForm, setShowReplyForm] = useState(false)
     const [loading, setLoading] = useState<boolean>(true)
     const [error, setError] = useState<string>('')
+    const [amIBanned, setAmIBanned] = useState<boolean>(false)
+    const [amIMod, setAmIMod] = useState<boolean>(false)
+    const [banMenuAnchor, setBanMenuAnchor] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const response = (await apiClient.get(`topic/${topicSlug}`))
                 setTopic(await topicResponseToTopic(response.data, isAuthenticated))
+
+                // Check if user is banned and if user is mod
+                if (isAuthenticated && communitySlug) {
+                    try {
+                        const banResponse = await apiClient.get(`community/${communitySlug}/am_i_banned/`)
+                        setAmIBanned(banResponse.data.am_i_banned)
+                        
+                        const modResponse = await apiClient.get(`community/${communitySlug}/am_i_mod/`)
+                        setAmIMod(modResponse.data.am_i_mod)
+                    } catch (error) {
+                        console.error('Failed to check ban/mod status:', error)
+                    }
+                }
             } catch (err) {
                 setError('Failed to fetch topic.')
                 console.error(err)
@@ -85,10 +104,10 @@ function Topic() {
             }
         }
         fetchData()
-    }, [topicSlug, communitySlug])
+    }, [topicSlug, communitySlug, isAuthenticated])
 
     const handleTopicVote = (newVote: number) => {
-        if (!isAuthenticated || !topic) return
+        if (!isAuthenticated || !topic || amIBanned) return
 
         const oldVote = topic.vote
         const voteAction = newVote === oldVote ? 0 : newVote
@@ -114,6 +133,7 @@ function Topic() {
     }
 
     const handleCreateComment = () => {
+        if (amIBanned) return
         setShowReplyForm(true)
     }
 
@@ -126,7 +146,7 @@ function Topic() {
     }
 
     const handleCommentVote = async (commentUrl: string, newVote: number) => {
-        if (!isAuthenticated || !topic) return
+        if (!isAuthenticated || !topic || amIBanned) return
 
         function findRecursivly(comments: CommentResponse[], func: Function): CommentResponse | null {
             if (comments.length === 0)
@@ -178,6 +198,54 @@ function Topic() {
         } catch (err) {
             setError('Failed to update vote')
             console.error(err)
+        }
+    }
+
+    const banOptions = [
+        { label: 'Permanent Ban', days: null },
+        { label: '1 Year Ban', days: 365 },
+        { label: '1 Month Ban', days: 30 },
+        { label: '1 Day Ban', days: 1 }
+    ]
+
+    function handleBanMenuOpen(event: React.MouseEvent<HTMLElement>) {
+        setBanMenuAnchor(event.currentTarget)
+    }
+
+    function handleBanMenuClose() {
+        setBanMenuAnchor(null)
+    }
+
+    async function handleBan(days: number | null) {
+        if (!topic) return
+
+        try {
+            const expirationDate = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() : null
+            const user = (await apiClient.get(topic.profile.url)).data.user
+
+            await apiClient.post('/ban/', {
+                user: user,
+                community: topic.community,
+                expires_at: expirationDate
+            })
+        } catch (error) {
+            setError('Failed to ban user')
+            console.error(error)
+        } finally {
+            handleBanMenuClose()
+        }
+    }
+
+    async function handleRemove() {
+        if (!topic || !topicSlug) return
+
+        try {
+            await apiClient.delete(`/topic/${topicSlug}/`)
+            // Navigate back to community page after successful deletion
+            navigate(`/communities/${communitySlug}`)
+        } catch (error) {
+            setError('Failed to remove topic')
+            console.error(error)
         }
     }
 
@@ -243,8 +311,11 @@ function Topic() {
                             value={topic.vote}
                             exclusive
                             onChange={(e, newVote) => {
-                                handleTopicVote(newVote);
+                                if (!amIBanned) {
+                                    handleTopicVote(newVote);
+                                }
                             }}
+                            disabled={amIBanned}
                             aria-label="topic voting"
                         >
                             <ToggleButton value={1} aria-label="upvote">
@@ -255,10 +326,46 @@ function Topic() {
                             </ToggleButton>
                         </ToggleButtonGroup>
                         <Typography variant="body1" sx={{ px: 1 }}>{topic.voteCount}</Typography>
-                        <IconButton aria-label="comment">
+                        <IconButton 
+                            aria-label="comment"
+                            disabled={amIBanned}
+                        >
                             <Comment />
                         </IconButton>
                         <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(topic.comments)}</Typography>
+
+                        {amIMod && (
+                            <>
+                                <IconButton 
+                                    onClick={handleBanMenuOpen} 
+                                    aria-label="ban user"
+                                    color="warning"
+                                >
+                                    <Block />
+                                </IconButton>
+                                <Menu
+                                    anchorEl={banMenuAnchor}
+                                    open={Boolean(banMenuAnchor)}
+                                    onClose={handleBanMenuClose}
+                                >
+                                    {banOptions.map((option, index) => (
+                                        <MenuItem 
+                                            key={index} 
+                                            onClick={() => handleBan(option.days)}
+                                        >
+                                            {option.label}
+                                        </MenuItem>
+                                    ))}
+                                </Menu>
+                                <IconButton 
+                                    onClick={handleRemove} 
+                                    aria-label="remove topic"
+                                    color="error"
+                                >
+                                    <Delete />
+                                </IconButton>
+                            </>
+                        )}
                     </CardActions>
                 </Card>
 
@@ -267,7 +374,7 @@ function Topic() {
                     <Typography variant="h5" component="h2">
                         Comments ({calcualteCommentCount(topic.comments)})
                     </Typography>
-                    {isAuthenticated && (
+                    {isAuthenticated && !amIBanned && (
                         <Button 
                             variant="contained" 
                             onClick={handleCreateComment}
@@ -300,6 +407,8 @@ function Topic() {
                                 key={index}
                                 commentResponse={comment}
                                 onVote={handleCommentVote}
+                                amIBanned={amIBanned}
+                                amIMod={amIMod}
                             />
                         ))}
                     </Box>

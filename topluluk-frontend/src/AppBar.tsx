@@ -79,7 +79,6 @@ function ResponsiveAppBar() {
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data)
-      console.log(data.payload)
       if (data.type === 'notification') {
         setNotificationCount(prewCount => prewCount + 1)
         setNotifications(prewNotifications => [...prewNotifications, data.payload])

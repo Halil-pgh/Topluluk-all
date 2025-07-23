@@ -39,6 +39,7 @@ function CreateTopicForm() {
         formData.append('community', `${apiClient.defaults.baseURL}community/${slug}/`)
 
         try {
+            console.log(formData.values())
             const response = await apiClient.post('/topic/', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
