@@ -9,6 +9,7 @@ from django.db.models.fields import IntegerField
 from django.utils import timezone
 from rest_framework import permissions, views, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
@@ -140,6 +141,15 @@ class MyProfileView(RetrieveUpdateAPIView):
     def get_object(self):
         return Profile.objects.get(user=self.request.user)
 
+class BanManager:
+    @staticmethod
+    def is_user_banned(user, community):
+        bans = Ban.objects.filter(user=user, community=community)
+        for ban in bans:
+            if ban.is_active():
+                return True
+        return False
+
 class Clickable:
     click_class = None
     click_field = None
@@ -220,8 +230,10 @@ class CommunityViewSet(Clickable, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def am_i_banned(self, request, slug):
-        result = Ban.objects.filter(user=request.user, community=self.get_object()).exists()
-        return Response({'am_i_banned': result}, status=status.HTTP_200_OK)
+        return Response({'am_i_banned': BanManager.is_user_banned(
+            user=request.user,
+            community=self.get_object()
+        )}, status=status.HTTP_200_OK)
 
     def get_queryset(self):
         queryset_length = 5
@@ -335,9 +347,10 @@ class TopicViewSet(Clickable, Votable, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def am_i_banned(self, request, slug):
-        topic = self.get_object()
-        result = Ban.objects.filter(user=request.user, community=topic.community).exists()
-        return Response({'am_i_banned': result}, status=status.HTTP_200_OK)
+        return Response({'am_i_banned': BanManager.is_user_banned(
+            user=request.user,
+            community=self.get_object().community
+        )}, status=status.HTTP_200_OK)
 
     def get_queryset(self):
         return Topic.objects.order_by('-created_date')
@@ -352,6 +365,12 @@ class TopicViewSet(Clickable, Votable, viewsets.ModelViewSet):
         return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
+        user = self.request.user
+        community = serializer.validated_data.get('community')
+
+        if BanManager.is_user_banned(user, community):
+            raise PermissionDenied('You are banned from this community and cannot create topics in it.')
+
         topic = serializer.save(user=self.request.user)
         subs = Subscriber.objects.filter(community=topic.community)
         url = serializer.data.get('url')
@@ -389,6 +408,12 @@ class CommentViewSet(Votable, viewsets.ModelViewSet):
         return [permissions.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
+        user = self.request.user
+        community = serializer.validated_data.get('topic').get('community')
+
+        if BanManager.is_user_banned(user, community):
+            raise PermissionDenied('You are banned from this community and cannot create topics in it.')
+
         comment = serializer.save(user=self.request.user)
         url = serializer.data.get('url')
 

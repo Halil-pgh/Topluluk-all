@@ -1,7 +1,9 @@
+import datetime
 from email.policy import default
 
 from django.db.models import Count, ExpressionWrapper, F, Sum
 from django.db.models.fields import IntegerField
+from django.utils import timezone
 from rest_framework import views, status
 from rest_framework.response import Response
 
@@ -12,7 +14,8 @@ from communities.serializers import CommunitySerializer, TopicSerializer, Profil
 class HotTopics(views.APIView):
     # today`s hot topics
     def get(self, request):
-        result = Topic.objects.annotate(
+        one_day_ago = timezone.now() - datetime.timedelta(days=1)
+        result = Topic.objects.filter(created_date__gt=one_day_ago).annotate(
             vote_count=Sum('topicvote__value'),
             view_count=Count('topicclick'),
             score=ExpressionWrapper(
