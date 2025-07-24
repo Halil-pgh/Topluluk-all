@@ -6,7 +6,6 @@ import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore, Delete, Bl
 import { calcualteCommentCount } from "./Topic"
 import CreateCommentForm from "./CreateCommentForm"
 import { useAuth } from "./useAuth"
-import { useParams } from "react-router-dom"
 
 interface CommentProps {
     topicUrl: string
@@ -26,7 +25,6 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
     const [banMenuAnchor, setBanMenuAnchor] = useState<HTMLElement | null>(null)
     const [error, setError] = useState<string>('')
     const { isAuthenticated } = useAuth()
-    const { communitySlug } = useParams()
 
     useEffect(() => {
         const fetchData = async () => {
@@ -123,44 +121,140 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
 
     return (
         <>
-        <Box sx={{ ml: depth * 5, mb: 2 }}>
-            <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
+        <Box sx={{ ml: depth * 3, mb: 3 }}>
+            <Card sx={{ 
+                borderRadius: 3,
+                overflow: 'hidden',
+                background: depth === 0 
+                    ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1f1f1f 100%)'
+                    : 'linear-gradient(135deg, #151515 0%, #252525 50%, #1a1a1a 100%)',
+                border: `1px solid ${depth === 0 ? '#3a3a3a' : '#2a2a2a'}`,
+                boxShadow: depth === 0 
+                    ? '0 4px 20px rgba(0,0,0,0.4)'
+                    : '0 2px 10px rgba(0,0,0,0.3)',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                    borderColor: depth === 0 ? '#4a4a4a' : '#3a3a3a',
+                    boxShadow: depth === 0 
+                        ? '0 6px 25px rgba(0,0,0,0.5)'
+                        : '0 3px 15px rgba(0,0,0,0.4)'
+                }
+            }}>
                 <CardContent sx={{ pb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    {/* Header with User Info */}
+                    <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        mb: 2,
+                        pb: 1.5,
+                        borderBottom: `1px solid ${depth === 0 ? '#3a3a3a' : '#2a2a2a'}`
+                    }}>
                         <Avatar 
                             src={userProfile?.image} 
                             alt={userProfile?.username}
-                            sx={{ width: 32, height: 32 }}
+                            sx={{ 
+                                width: depth === 0 ? 40 : 36, 
+                                height: depth === 0 ? 40 : 36,
+                                border: '2px solid #4a4a4a'
+                            }}
                         />
-                        <Typography variant="subtitle2" sx={{ ml: 1.5 }}>
-                            {userProfile?.username}
-                        </Typography>
-                        <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
-                            {formatDate(comment.created_date)}
-                        </Typography>
+                        <Box sx={{ ml: 1.5, flex: 1 }}>
+                            <Typography 
+                                variant="subtitle2" 
+                                sx={{ 
+                                    fontWeight: 600,
+                                    color: '#e0e0e0',
+                                    fontSize: depth === 0 ? '0.95rem' : '0.9rem'
+                                }}
+                            >
+                                {userProfile?.username}
+                            </Typography>
+                            <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                    color: '#9e9e9e',
+                                    fontSize: '0.8rem'
+                                }}
+                            >
+                                {formatDate(comment.created_date)}
+                            </Typography>
+                        </Box>
                     </Box>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
+
+                    {/* Comment Text */}
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            mb: 2,
+                            lineHeight: 1.6,
+                            color: '#d0d0d0',
+                            fontSize: depth === 0 ? '0.95rem' : '0.9rem'
+                        }}
+                    >
                         {comment.text}
                     </Typography>
+
                     {error && (
-                        <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+                        <Typography 
+                            color="error" 
+                            variant="body2" 
+                            sx={{ 
+                                mt: 1,
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: 'rgba(244, 67, 54, 0.1)',
+                                border: '1px solid rgba(244, 67, 54, 0.3)'
+                            }}
+                        >
                             {error}
                         </Typography>
                     )}
                 </CardContent>
-                <CardActions sx={{ pt: 0, justifyContent: 'space-between' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+
+                {/* Actions Bar */}
+                <CardActions sx={{ 
+                    pt: 2, 
+                    px: 2,
+                    pb: 2,
+                    justifyContent: 'space-between',
+                    background: 'rgba(0,0,0,0.2)',
+                    borderTop: `1px solid ${depth === 0 ? '#3a3a3a' : '#2a2a2a'}`
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <ToggleButtonGroup
                             value={comment.vote}
                             exclusive
                             size="small"
-                            onChange={(e, newVote) => {
+                            onChange={(_, newVote) => {
                                 if (!amIBanned) {
                                     onVote(comment.url, newVote);
                                 }
                             }}
                             disabled={amIBanned}
-                            aria-label="comment voting"
+                            sx={{
+                                '& .MuiToggleButton-root': {
+                                    border: '1px solid #3a3a3a',
+                                    borderRadius: 1.5,
+                                    px: 1.5,
+                                    py: 0.5,
+                                    mx: 0.25,
+                                    backgroundColor: '#2a2a2a',
+                                    color: '#e0e0e0',
+                                    minWidth: 32,
+                                    '&:hover': {
+                                        bgcolor: '#404040',
+                                        borderColor: '#4a4a4a'
+                                    },
+                                    '&.Mui-selected': {
+                                        bgcolor: '#4a4a4a',
+                                        color: '#ffffff',
+                                        borderColor: '#5a5a5a',
+                                        '&:hover': {
+                                            bgcolor: '#505050'
+                                        }
+                                    }
+                                }
+                            }}
                         >
                             <ToggleButton value={1} aria-label="upvote">
                                 <ArrowUpward fontSize="small" />
@@ -169,30 +263,88 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
                                 <ArrowDownward fontSize="small" />
                             </ToggleButton>
                         </ToggleButtonGroup>
-                        <Typography variant="body2" sx={{ px: 1 }}>{comment.vote_count}</Typography>
-                        <IconButton 
-                            aria-label="comment"
-                            disabled={amIBanned}
+                        
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                fontWeight: 600,
+                                minWidth: 24,
+                                textAlign: 'center',
+                                color: comment.vote_count > 0 ? '#66bb6a' : 
+                                       comment.vote_count < 0 ? '#ef5350' : '#9e9e9e',
+                                fontSize: '0.875rem'
+                            }}
                         >
-                            <Comment />
-                        </IconButton>
-                        <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(comment.replies)}</Typography>
+                            {comment.vote_count > 0 ? '+' : ''}{comment.vote_count}
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
+                            <IconButton 
+                                aria-label="comment"
+                                disabled={amIBanned}
+                                size="small"
+                                sx={{
+                                    color: '#9e9e9e',
+                                    '&:hover': {
+                                        color: '#e0e0e0',
+                                        bgcolor: 'rgba(255,255,255,0.1)'
+                                    }
+                                }}
+                            >
+                                <Comment fontSize="small" />
+                            </IconButton>
+                            <Typography 
+                                variant="body2"
+                                sx={{ 
+                                    color: '#9e9e9e',
+                                    fontWeight: 500,
+                                    fontSize: '0.8rem'
+                                }}
+                            >
+                                {calcualteCommentCount(comment.replies)}
+                            </Typography>
+                        </Box>
 
                         {isAuthenticated && !amIBanned && (
-                            <Button onClick={handleCreateComment} sx={{ ml: 2 }}>Reply</Button>
+                            <Button 
+                                onClick={handleCreateComment} 
+                                size="small"
+                                sx={{ 
+                                    ml: 2,
+                                    borderRadius: 2,
+                                    px: 2,
+                                    py: 0.5,
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    textTransform: 'none',
+                                    color: '#e0e0e0',
+                                    border: '1px solid #3a3a3a',
+                                    '&:hover': {
+                                        bgcolor: 'rgba(255,255,255,0.1)',
+                                        borderColor: '#4a4a4a'
+                                    }
+                                }}
+                            >
+                                Reply
+                            </Button>
                         )}
 
                         {amIMod && (
-                            <>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
                                 <IconButton 
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleBanMenuOpen(e);
                                     }} 
                                     aria-label="ban user"
-                                    color="warning"
                                     size="small"
-                                    sx={{ ml: 4 }}
+                                    sx={{
+                                        color: '#ff9800',
+                                        '&:hover': {
+                                            bgcolor: 'rgba(255, 152, 0, 0.1)',
+                                            color: '#ffb74d'
+                                        }
+                                    }}
                                 >
                                     <Block fontSize="small" />
                                 </IconButton>
@@ -200,11 +352,24 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
                                     anchorEl={banMenuAnchor}
                                     open={Boolean(banMenuAnchor)}
                                     onClose={handleBanMenuClose}
+                                    PaperProps={{
+                                        sx: {
+                                            borderRadius: 2,
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                            backgroundColor: '#2a2a2a',
+                                            border: '1px solid #3a3a3a'
+                                        }
+                                    }}
                                 >
                                     {banOptions.map((option, index) => (
                                         <MenuItem 
                                             key={index} 
                                             onClick={() => handleBan(option.days)}
+                                            sx={{
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(255, 152, 0, 0.1)'
+                                                }
+                                            }}
                                         >
                                             {option.label}
                                         </MenuItem>
@@ -216,29 +381,57 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
                                         handleRemove();
                                     }} 
                                     aria-label="remove comment"
-                                    color="error"
                                     size="small"
-                                    sx={{ ml: 4 }}
+                                    sx={{
+                                        color: '#f44336',
+                                        '&:hover': {
+                                            bgcolor: 'rgba(244, 67, 54, 0.1)',
+                                            color: '#ef5350'
+                                        }
+                                    }}
                                 >
                                     <Delete fontSize="small" />
                                 </IconButton>
-                            </>
+                            </Box>
                         )}
                     </Box>
+                    
                     {comment.replies.length > 0 && (
                         <Button
                             size="small"
                             onClick={handleToggleExpand}
                             startIcon={expanded ? <ExpandLess /> : <ExpandMore />}
+                            sx={{
+                                borderRadius: 2,
+                                px: 2,
+                                py: 0.5,
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                textTransform: 'none',
+                                color: '#b0b0b0',
+                                border: '1px solid #3a3a3a',
+                                '&:hover': {
+                                    bgcolor: 'rgba(255,255,255,0.05)',
+                                    borderColor: '#4a4a4a',
+                                    color: '#e0e0e0'
+                                }
+                            }}
                         >
-                            {expanded ? 'Hide' : 'Show'} {comment.replies.length} replies
+                            {expanded ? 'Hide' : 'Show'} {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
                         </Button>
                     )}
                 </CardActions>
             </Card>
 
             {showReplyForm && (
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ 
+                    mt: 3,
+                    p: 3,
+                    borderRadius: 3,
+                    background: 'linear-gradient(135deg, #151515 0%, #252525 50%, #1a1a1a 100%)',
+                    border: '1px solid #2a2a2a',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+                }}>
                     <CreateCommentForm
                         topicUrl={topicUrl}
                         parentCommentUrl={comment.url}

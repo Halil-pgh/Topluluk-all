@@ -1,8 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import apiClient from "./api"
 import { Alert, Box, Button, Card, CardContent, TextField, Typography } from "@mui/material"
-import ResponsiveAppBar from "./AppBar"
 
 function CreateTopicForm() {
     const { slug } = useParams<{ slug: string }>()
@@ -11,7 +10,26 @@ function CreateTopicForm() {
     const [image, setImage] = useState<File | null>(null)
     const [error, setError] = useState<string>('')
     const [success, setSuccess] = useState<string>('')
+    const [amIBanned, setAmIBanned] = useState<boolean>(false)
+    const [loading, setLoading] = useState<boolean>(true)
     const navigate = useNavigate()
+
+    useEffect(() => {
+        const checkBanStatus = async () => {
+            try {
+                const response = await apiClient.get(`community/${slug}/am_i_banned/`)
+                setAmIBanned(response.data.am_i_banned)
+            } catch (error) {
+                console.error('Failed to check ban status:', error)
+                // If we can't check ban status, assume not banned to avoid blocking legitimate users
+                setAmIBanned(false)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        checkBanStatus()
+    }, [slug])
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -23,6 +41,11 @@ function CreateTopicForm() {
         event.preventDefault()
         setError('')
         setSuccess('')
+
+        if (amIBanned) {
+            setError("You are banned from this community and cannot create topics.")
+            return
+        }
 
         if (!title || !text) {
             setError("Title and text are required.")
@@ -58,7 +81,6 @@ function CreateTopicForm() {
 
     return (
         <>
-            <ResponsiveAppBar />
             <Box component='main'
                 sx={{
                     margin: 'auto',
@@ -71,62 +93,83 @@ function CreateTopicForm() {
                         <Typography component='h1' variant="h5" align="center">
                             Create a New Topic in c/{slug}
                         </Typography>
-                        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-                            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                            {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                id="title"
-                                label="Title"
-                                name="title"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                autoFocus
-                            />
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                name="text"
-                                label="Text"
-                                id="text"
-                                multiline
-                                rows={8}
-                                value={text}
-                                onChange={(e) => setText(e.target.value)}
-                            />
-                            <Button
-                                variant="contained"
-                                component="label"
-                                sx={{ mt: 2 }}
-                            >
-                                Upload Image
-                                <input
-                                    type="file"
-                                    hidden
-                                    accept="image/*"
-                                    onChange={handleFileChange}
-                                />
-                            </Button>
-                            {image && <Typography sx={{ mt: 1, ml: 1 }} display="inline">{image.name}</Typography>}
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3, mb: 2 }}>
-                                <Button
-                                    type="submit"
-                                    variant="contained"
-                                >
-                                    Create Topic
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outlined"
-                                    onClick={() => navigate(`/communities/${slug}`)}
-                                >
-                                    Cancel
-                                </Button>
+                        
+                        {loading ? (
+                            <Box sx={{ textAlign: 'center', mt: 4 }}>
+                                <Typography>Checking permissions...</Typography>
                             </Box>
-                        </Box>
+                        ) : amIBanned ? (
+                            <Box sx={{ mt: 3 }}>
+                                <Alert severity="error" sx={{ mb: 2 }}>
+                                    You are banned from this community and cannot create topics.
+                                </Alert>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => navigate(`/communities/${slug}`)}
+                                    >
+                                        Back to Community
+                                    </Button>
+                                </Box>
+                            </Box>
+                        ) : (
+                            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+                                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                                {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+                                <TextField
+                                    margin="normal"
+                                    required
+                                    fullWidth
+                                    id="title"
+                                    label="Title"
+                                    name="title"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    autoFocus
+                                />
+                                <TextField
+                                    margin="normal"
+                                    required
+                                    fullWidth
+                                    name="text"
+                                    label="Text"
+                                    id="text"
+                                    multiline
+                                    rows={8}
+                                    value={text}
+                                    onChange={(e) => setText(e.target.value)}
+                                />
+                                <Button
+                                    variant="contained"
+                                    component="label"
+                                    sx={{ mt: 2 }}
+                                >
+                                    Upload Image
+                                    <input
+                                        type="file"
+                                        hidden
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                    />
+                                </Button>
+                                {image && <Typography sx={{ mt: 1, ml: 1 }} display="inline">{image.name}</Typography>}
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3, mb: 2 }}>
+                                    <Button
+                                        type="submit"
+                                        variant="contained"
+                                    >
+                                        Create Topic
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outlined"
+                                        onClick={() => navigate(`/communities/${slug}`)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </Box>
+                            </Box>
+                        )}
                     </CardContent>
                 </Card>
             </Box>

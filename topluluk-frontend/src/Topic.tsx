@@ -4,7 +4,6 @@ import { useParams, useNavigate } from "react-router-dom"
 import apiClient from "./api"
 import { useAuth } from "./useAuth"
 import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Container, Divider, IconButton, ToggleButton, ToggleButtonGroup, Typography, Menu, MenuItem } from "@mui/material"
-import ResponsiveAppBar from "./AppBar"
 import { ArrowDownward, ArrowUpward, Comment, Delete, Block } from "@mui/icons-material"
 import CommentComponent from './Comment'
 import CreateCommentForm from "./CreateCommentForm"
@@ -252,9 +251,25 @@ function Topic() {
     if (loading) {
         return (
             <>
-                <ResponsiveAppBar />
                 <Container sx={{ mt: 12, py: 2 }}>
-                    <Typography>Loading topic...</Typography>
+                    <Box sx={{ 
+                        textAlign: 'center', 
+                        py: 8,
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1f1f1f 100%)',
+                        border: '1px solid #3a3a3a',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+                    }}>
+                        <Typography 
+                            variant="h6" 
+                            sx={{ 
+                                color: '#9e9e9e',
+                                fontWeight: 500
+                            }}
+                        >
+                            Loading topic...
+                        </Typography>
+                    </Box>
                 </Container>
             </>
         )
@@ -263,9 +278,34 @@ function Topic() {
     if (error || !topic) {
         return (
             <>
-                <ResponsiveAppBar />
                 <Container sx={{ mt: 12, py: 2 }}>
-                    <Typography color="error">{error || 'Topic not found'}</Typography>
+                    <Box sx={{ 
+                        textAlign: 'center', 
+                        py: 8,
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #2a1a1a 0%, #3d2d2d 50%, #2f1f1f 100%)',
+                        border: '1px solid #4a3a3a',
+                        boxShadow: '0 4px 20px rgba(139, 69, 19, 0.3)'
+                    }}>
+                        <Typography 
+                            variant="h6"
+                            sx={{ 
+                                color: '#ff6b6b',
+                                fontWeight: 600,
+                                mb: 1
+                            }}
+                        >
+                            {error || 'Topic not found'}
+                        </Typography>
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                color: '#9e9e9e'
+                            }}
+                        >
+                            The topic you're looking for doesn't exist or has been removed.
+                        </Typography>
+                    </Box>
                 </Container>
             </>
         )
@@ -273,112 +313,309 @@ function Topic() {
 
     return (
         <>
-            <ResponsiveAppBar />
             <Container sx={{ mt: 12, py: 2 }}>
-                <Card sx={{ borderRadius: 2, boxShadow: 3, mb: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
-                        <Avatar src={topic.profile.image} alt={topic.profile.username} />
-                        <Typography variant="subtitle2" sx={{ ml: 1.5 }}>
-                            {topic.profile.username}
-                        </Typography>
-                        <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
-                            {formatDate(topic.createdDate)}
-                        </Typography>
+                <Card sx={{ 
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1f1f1f 100%)',
+                    border: '1px solid #3a3a3a',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                    mb: 4
+                }}>
+                    {/* Header with User Info */}
+                    <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        p: 3,
+                        pb: 2,
+                        background: 'rgba(0,0,0,0.3)',
+                        borderBottom: '1px solid #3a3a3a'
+                    }}>
+                        <Avatar 
+                            src={topic.profile.image} 
+                            alt={topic.profile.username}
+                            sx={{ 
+                                width: 56,
+                                height: 56,
+                                border: '2px solid #4a4a4a'
+                            }}
+                        />
+                        <Box sx={{ ml: 2, flex: 1 }}>
+                            <Typography 
+                                variant="h6" 
+                                sx={{ 
+                                    fontWeight: 600,
+                                    color: '#e0e0e0'
+                                }}
+                            >
+                                {topic.profile.username}
+                            </Typography>
+                            <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                    color: '#9e9e9e',
+                                    fontSize: '0.875rem'
+                                }}
+                            >
+                                {formatDate(topic.createdDate)}
+                            </Typography>
+                        </Box>
                     </Box>
 
-                    <Box sx={{ px: 2, pb: 1 }}>
-                        <Typography variant="h4" component="h1" gutterBottom>
+                    {/* Title */}
+                    <Box sx={{ px: 3, py: 3 }}>
+                        <Typography 
+                            variant="h3" 
+                            component="h1" 
+                            sx={{ 
+                                fontWeight: 700,
+                                color: '#f5f5f5',
+                                lineHeight: 1.2,
+                                mb: 0
+                            }}
+                        >
                             {topic.title}
                         </Typography>
                     </Box>
 
-                    {topic.image && (
+                    {/* Content */}
+                    {topic.image ? (
                         <CardMedia
                             component="img"
                             image={topic.image}
                             alt={`${topic.title} picture`}
-                            sx={{ objectFit: 'contain', maxHeight: 600 }}
-                        />
-                    )}
-                    <CardContent>
-                        <Typography variant="body1">
-                            {topic.text}
-                        </Typography>
-                    </CardContent>
-
-                    <CardActions>
-                        <ToggleButtonGroup
-                            value={topic.vote}
-                            exclusive
-                            onChange={(e, newVote) => {
-                                if (!amIBanned) {
-                                    handleTopicVote(newVote);
-                                }
+                            sx={{ 
+                                objectFit: 'contain', 
+                                maxHeight: 600,
+                                borderRadius: '12px',
+                                mx: 3,
+                                mb: 3
                             }}
-                            disabled={amIBanned}
-                            aria-label="topic voting"
-                        >
-                            <ToggleButton value={1} aria-label="upvote">
-                                <ArrowUpward />
-                            </ToggleButton>
-                            <ToggleButton value={-1} aria-label="downvote">
-                                <ArrowDownward />
-                            </ToggleButton>
-                        </ToggleButtonGroup>
-                        <Typography variant="body1" sx={{ px: 1 }}>{topic.voteCount}</Typography>
-                        <IconButton 
-                            aria-label="comment"
-                            disabled={amIBanned}
-                        >
-                            <Comment />
-                        </IconButton>
-                        <Typography variant="body2" sx={{ mr: 'auto' }}>{calcualteCommentCount(topic.comments)}</Typography>
+                        />
+                    ) : (
+                        <CardContent sx={{ 
+                            pt: 0,
+                            pb: 3,
+                            px: 3,
+                            '&:last-child': { pb: 3 }
+                        }}>
+                            <Typography 
+                                variant="body1" 
+                                sx={{
+                                    lineHeight: 1.7,
+                                    color: '#d0d0d0',
+                                    fontSize: '1.1rem'
+                                }}
+                            >
+                                {topic.text}
+                            </Typography>
+                        </CardContent>
+                    )}
 
-                        {amIMod && (
-                            <>
+                    {/* Actions Bar */}
+                    <CardActions sx={{ 
+                        p: 3,
+                        pt: 2,
+                        background: 'rgba(0,0,0,0.4)',
+                        borderTop: '1px solid #3a3a3a',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <ToggleButtonGroup
+                                value={topic.vote}
+                                exclusive
+                                onChange={(_, newVote) => {
+                                    if (!amIBanned) {
+                                        handleTopicVote(newVote);
+                                    }
+                                }}
+                                disabled={amIBanned}
+                                size="small"
+                                sx={{
+                                    '& .MuiToggleButton-root': {
+                                        border: '1px solid #3a3a3a',
+                                        borderRadius: 2,
+                                        px: 2,
+                                        py: 1,
+                                        mx: 0.5,
+                                        backgroundColor: '#2a2a2a',
+                                        color: '#e0e0e0',
+                                        '&:hover': {
+                                            bgcolor: '#404040',
+                                            borderColor: '#4a4a4a'
+                                        },
+                                        '&.Mui-selected': {
+                                            bgcolor: '#4a4a4a',
+                                            color: '#ffffff',
+                                            borderColor: '#5a5a5a',
+                                            '&:hover': {
+                                                bgcolor: '#505050'
+                                            }
+                                        }
+                                    }
+                                }}
+                            >
+                                <ToggleButton value={1} aria-label="upvote">
+                                    <ArrowUpward fontSize="small" />
+                                </ToggleButton>
+                                <ToggleButton value={-1} aria-label="downvote">
+                                    <ArrowDownward fontSize="small" />
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                            
+                            <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                    fontWeight: 600,
+                                    minWidth: 32,
+                                    textAlign: 'center',
+                                    color: topic.voteCount > 0 ? '#66bb6a' : 
+                                           topic.voteCount < 0 ? '#ef5350' : '#9e9e9e'
+                                }}
+                            >
+                                {topic.voteCount > 0 ? '+' : ''}{topic.voteCount}
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <IconButton 
-                                    onClick={handleBanMenuOpen} 
-                                    aria-label="ban user"
-                                    color="warning"
+                                    aria-label="comment"
+                                    disabled={amIBanned}
+                                    size="small"
+                                    sx={{
+                                        color: '#9e9e9e',
+                                        '&:hover': {
+                                            color: '#e0e0e0',
+                                            bgcolor: 'rgba(255,255,255,0.1)'
+                                        }
+                                    }}
                                 >
-                                    <Block />
+                                    <Comment fontSize="small" />
                                 </IconButton>
-                                <Menu
-                                    anchorEl={banMenuAnchor}
-                                    open={Boolean(banMenuAnchor)}
-                                    onClose={handleBanMenuClose}
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        color: '#9e9e9e',
+                                        fontWeight: 500
+                                    }}
                                 >
-                                    {banOptions.map((option, index) => (
-                                        <MenuItem 
-                                            key={index} 
-                                            onClick={() => handleBan(option.days)}
-                                        >
-                                            {option.label}
-                                        </MenuItem>
-                                    ))}
-                                </Menu>
-                                <IconButton 
-                                    onClick={handleRemove} 
-                                    aria-label="remove topic"
-                                    color="error"
-                                >
-                                    <Delete />
-                                </IconButton>
-                            </>
-                        )}
+                                    {calcualteCommentCount(topic.comments)}
+                                </Typography>
+                            </Box>
+                            
+                            {amIMod && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <IconButton 
+                                        onClick={handleBanMenuOpen} 
+                                        aria-label="ban user"
+                                        size="small"
+                                        sx={{
+                                            color: '#ff9800',
+                                            '&:hover': {
+                                                bgcolor: 'rgba(255, 152, 0, 0.1)',
+                                                color: '#ffb74d'
+                                            }
+                                        }}
+                                    >
+                                        <Block fontSize="small" />
+                                    </IconButton>
+                                    <Menu
+                                        anchorEl={banMenuAnchor}
+                                        open={Boolean(banMenuAnchor)}
+                                        onClose={handleBanMenuClose}
+                                        PaperProps={{
+                                            sx: {
+                                                borderRadius: 2,
+                                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                                backgroundColor: '#2a2a2a',
+                                                border: '1px solid #3a3a3a'
+                                            }
+                                        }}
+                                    >
+                                        {banOptions.map((option, index) => (
+                                            <MenuItem 
+                                                key={index} 
+                                                onClick={() => handleBan(option.days)}
+                                                sx={{
+                                                    '&:hover': {
+                                                        bgcolor: 'rgba(255, 152, 0, 0.1)'
+                                                    }
+                                                }}
+                                            >
+                                                {option.label}
+                                            </MenuItem>
+                                        ))}
+                                    </Menu>
+                                    <IconButton 
+                                        onClick={handleRemove} 
+                                        aria-label="remove topic"
+                                        size="small"
+                                        sx={{
+                                            color: '#f44336',
+                                            '&:hover': {
+                                                bgcolor: 'rgba(244, 67, 54, 0.1)',
+                                                color: '#ef5350'
+                                            }
+                                        }}
+                                    >
+                                        <Delete fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            )}
+                        </Box>
                     </CardActions>
                 </Card>
 
-                <Divider sx={{ mb: 3 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" component="h2">
-                        Comments ({calcualteCommentCount(topic.comments)})
+                <Divider sx={{ 
+                    mb: 4, 
+                    borderColor: '#3a3a3a',
+                    boxShadow: '0 1px 0 rgba(255,255,255,0.05)'
+                }} />
+                
+                <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    mb: 4,
+                    p: 3,
+                    borderRadius: 3,
+                    background: 'linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)',
+                    border: '1px solid #3a3a3a'
+                }}>
+                    <Typography 
+                        variant="h4" 
+                        component="h2"
+                        sx={{
+                            fontWeight: 600,
+                            color: '#f5f5f5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                        }}
+                    >
+                        💬 Comments ({calcualteCommentCount(topic.comments)})
                     </Typography>
                     {isAuthenticated && !amIBanned && (
                         <Button 
                             variant="contained" 
                             onClick={handleCreateComment}
-                            sx={{ ml: 2 }}
+                            sx={{ 
+                                borderRadius: 3,
+                                px: 3,
+                                py: 1.5,
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                background: 'linear-gradient(135deg, #4a4a4a 0%, #5a5a5a 100%)',
+                                border: '1px solid #6a6a6a',
+                                color: '#ffffff',
+                                '&:hover': {
+                                    background: 'linear-gradient(135deg, #5a5a5a 0%, #6a6a6a 100%)',
+                                    transform: 'translateY(-1px)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                                }
+                            }}
                         >
                             Add Comment
                         </Button>
@@ -396,9 +633,33 @@ function Topic() {
                 )}
 
                 {topic.comments.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                        No comments yet. Be the first to comment!
-                    </Typography>
+                    <Box sx={{ 
+                        textAlign: 'center', 
+                        py: 8,
+                        borderRadius: 4,
+                        background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1f1f1f 100%)',
+                        border: '1px solid #3a3a3a',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+                    }}>
+                        <Typography 
+                            variant="h6" 
+                            sx={{ 
+                                color: '#9e9e9e',
+                                fontWeight: 500,
+                                mb: 1
+                            }}
+                        >
+                            No comments yet
+                        </Typography>
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                color: '#7a7a7a'
+                            }}
+                        >
+                            Be the first to share your thoughts!
+                        </Typography>
+                    </Box>
                 ) : (
                     <Box>
                         {topic.comments.map((comment, index) => (

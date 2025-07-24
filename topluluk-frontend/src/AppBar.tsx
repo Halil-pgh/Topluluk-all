@@ -12,7 +12,13 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import MenuIcon from '@mui/icons-material/Menu'
-import AdbIcon from '@mui/icons-material/Adb';
+import HomeIcon from '@mui/icons-material/Home';
+import WhatshotIcon from '@mui/icons-material/Whatshot';
+import GroupsIcon from '@mui/icons-material/Groups';
+import GroupIcon from '@mui/icons-material/Group';
+import SubscriptionsIcon from '@mui/icons-material/Subscriptions';
+import AddIcon from '@mui/icons-material/Add';
+import SettingsIcon from '@mui/icons-material/Settings';
 import apiClient from './api';
 import { useAuth } from './useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -132,6 +138,10 @@ function ResponsiveAppBar() {
     navigate('/subscriptions')
   }
 
+  const handleHotTopics = () => {
+    navigate('/hot_topics')
+  }
+
   const handleNotification = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNotification(anchorElNotification ? null : event.currentTarget);
   }
@@ -140,21 +150,33 @@ function ResponsiveAppBar() {
     setAnchorElNotification(null);
   }
 
+  const handleSettings = () => {
+    navigate('/settings')
+  }
+
   const list = () => (
     <Box
-      sx={{ width: 250 }}
+      sx={{ width: 250, height: '100%', display: 'flex', flexDirection: 'column' }}
       role='presentation'
       onClick={handleDrawerClose}
       onKeyDown={handleDrawerClose}
     >
-      <List>
+      <List sx={{ flexGrow: 1 }}>
         <ListItem key='Home' disablePadding>
           <ListItemButton onClick={handleHome}>
+            <HomeIcon sx={{ mr: 2 }} />
             <ListItemText primary='Home' />
+          </ListItemButton>
+        </ListItem>
+        <ListItem key='Hot Topics' disablePadding>
+          <ListItemButton onClick={handleHotTopics}>
+            <WhatshotIcon sx={{ mr: 2 }} />
+            <ListItemText primary='Hot Topics' />
           </ListItemButton>
         </ListItem>
         <ListItem key='Communities' disablePadding>
           <ListItemButton onClick={handleCommunities}>
+            <GroupIcon sx={{ mr: 2 }} />
             <ListItemText primary='Communities' />
           </ListItemButton>
         </ListItem>
@@ -163,17 +185,31 @@ function ResponsiveAppBar() {
             <>
               <ListItem key='Subscriptions' disablePadding>
                 <ListItemButton onClick={handleSubscriptions}>
+                  <SubscriptionsIcon sx={{ mr: 2 }} />
                   <ListItemText primary='Subscriptions' />
-                </ListItemButton>
-              </ListItem>
-              <ListItem key='Create Community' disablePadding>
-                <ListItemButton onClick={handleCreateCommunity}>
-                  <ListItemText primary='Create Community' />
                 </ListItemButton>
               </ListItem>
             </>
           )
         }
+      </List>
+      <List>
+        {
+          (isAuthenticated &&
+            <ListItem key='Create Community' disablePadding>
+                <ListItemButton onClick={handleCreateCommunity}>
+                  <AddIcon sx={{ mr: 2 }} />
+                  <ListItemText primary='Create Community' />
+                </ListItemButton>
+              </ListItem>
+          )
+        }
+        <ListItem key='Settings' disablePadding>
+          <ListItemButton onClick={handleSettings}>
+            <SettingsIcon sx={{ mr: 2 }} />
+            <ListItemText primary='Settings' />
+          </ListItemButton>
+        </ListItem>
       </List>
     </Box>
   )
@@ -193,7 +229,7 @@ function ResponsiveAppBar() {
           >
             <MenuIcon />
           </IconButton>
-          <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
+          <GroupsIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
           <Typography
             variant="h6"
             noWrap
