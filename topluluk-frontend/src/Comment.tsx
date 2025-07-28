@@ -1,11 +1,127 @@
 import { useEffect, useState } from "react"
 import { formatDate, type CommentResponse } from "./responseTypes"
 import apiClient from "./api"
-import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, ToggleButton, ToggleButtonGroup, Typography, Menu, MenuItem } from "@mui/material"
-import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore, Delete, Block } from "@mui/icons-material"
-import { calcualteCommentCount } from "./Topic"
+import { Avatar, Box, Button, Card, CardActions, CardContent, IconButton, ToggleButton, ToggleButtonGroup, Typography, Menu, MenuItem, Tooltip, Chip, Link } from "@mui/material"
+import { ArrowDownward, ArrowUpward, Comment, ExpandLess, ExpandMore, Delete, Block, EmojiEvents, DateRange, Link as LinkIcon, Info, ReportProblem } from "@mui/icons-material"
+import { calcualteCommentCount, type Profile } from "./Topic"
 import CreateCommentForm from "./CreateCommentForm"
 import { useAuth } from "./useAuth"
+
+// Simplified Profile Tooltip Component for Comments
+interface CommentProfileTooltipProps {
+    userProfile: { username: string, image: string, url: string } | null
+    children: React.ReactElement
+}
+
+const CommentProfileTooltip = ({ userProfile, children }: CommentProfileTooltipProps) => {
+    if (!userProfile) return children
+
+    const tooltipContent = (
+        <Box sx={{ 
+            maxWidth: 280,
+            p: 0,
+            borderRadius: 4,
+            overflow: 'hidden',
+            backgroundColor: '#1e1e1e'
+        }}>
+            {/* Header */}
+            <Box sx={{ 
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1f1f1f 100%)',
+                p: 3,
+                borderBottom: '1px solid #3a3a3a'
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Avatar 
+                        src={userProfile.image} 
+                        alt={userProfile.username}
+                        sx={{ 
+                            width: 48,
+                            height: 48,
+                            border: '2px solid #4a4a4a',
+                            mr: 2
+                        }}
+                    />
+                    <Box>
+                        <Typography 
+                            variant="h6" 
+                            sx={{ 
+                                fontWeight: 700,
+                                color: '#f5f5f5',
+                                mb: 0.5
+                            }}
+                        >
+                            {userProfile.username}
+                        </Typography>
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                color: '#9e9e9e'
+                            }}
+                        >
+                            Community Member
+                        </Typography>
+                    </Box>
+                </Box>
+            </Box>
+
+            {/* Details */}
+            <Box sx={{ 
+                p: 3, 
+                pt: 2,
+                backgroundColor: '#1e1e1e'
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Info sx={{ color: '#66bb6a', fontSize: 18, mr: 1 }} />
+                    <Typography 
+                        variant="body2" 
+                        sx={{ color: '#d0d0d0' }}
+                    >
+                        Click to view full profile
+                    </Typography>
+                </Box>
+            </Box>
+        </Box>
+    )
+
+    return (
+        <Tooltip
+            title={tooltipContent}
+            placement="bottom-start"
+            arrow
+            slotProps={{
+                popper: {
+                    modifiers: [
+                        {
+                            name: 'offset',
+                            options: {
+                                offset: [0, 8],
+                            },
+                        },
+                    ],
+                },
+                tooltip: {
+                    sx: {
+                        bgcolor: 'transparent',
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
+                        borderRadius: 4,
+                        border: '1px solid #3a3a3a',
+                        p: 0,
+                        maxWidth: 'none',
+                        overflow: 'hidden',
+                        '& .MuiTooltip-arrow': {
+                            color: '#1a1a1a',
+                            '&::before': {
+                                border: '1px solid #3a3a3a'
+                            }
+                        }
+                    }
+                }
+            }}
+        >
+            {children}
+        </Tooltip>
+    )
+}
 
 interface CommentProps {
     topicUrl: string
@@ -25,6 +141,11 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
     const [banMenuAnchor, setBanMenuAnchor] = useState<HTMLElement | null>(null)
     const [error, setError] = useState<string>('')
     const { isAuthenticated } = useAuth()
+
+    // Sync local comment state with the prop when it changes
+    useEffect(() => {
+        setComment(commentResponse)
+    }, [commentResponse])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -141,44 +262,57 @@ function CommentComponent({ topicUrl, commentResponse, depth = 0, onVote, amIBan
                 }
             }}>
                 <CardContent sx={{ pb: 1 }}>
-                    {/* Header with User Info */}
+                    {/* Header with User Info and Date */}
                     <Box sx={{ 
                         display: 'flex', 
-                        alignItems: 'center', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between', 
                         mb: 2,
                         pb: 1.5,
                         borderBottom: `1px solid ${depth === 0 ? '#3a3a3a' : '#2a2a2a'}`
                     }}>
-                        <Avatar 
-                            src={userProfile?.image} 
-                            alt={userProfile?.username}
-                            sx={{ 
-                                width: depth === 0 ? 40 : 36, 
-                                height: depth === 0 ? 40 : 36,
-                                border: '2px solid #4a4a4a'
-                            }}
-                        />
-                        <Box sx={{ ml: 1.5, flex: 1 }}>
-                            <Typography 
-                                variant="subtitle2" 
-                                sx={{ 
-                                    fontWeight: 600,
-                                    color: '#e0e0e0',
-                                    fontSize: depth === 0 ? '0.95rem' : '0.9rem'
-                                }}
-                            >
-                                {userProfile?.username}
-                            </Typography>
-                            <Typography 
-                                variant="caption" 
-                                sx={{ 
-                                    color: '#9e9e9e',
-                                    fontSize: '0.8rem'
-                                }}
-                            >
-                                {formatDate(comment.created_date)}
-                            </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <CommentProfileTooltip userProfile={userProfile}>
+                                <Avatar 
+                                    src={userProfile?.image} 
+                                    alt={userProfile?.username}
+                                    sx={{ 
+                                        width: depth === 0 ? 40 : 36, 
+                                        height: depth === 0 ? 40 : 36,
+                                        border: '2px solid #4a4a4a',
+                                        cursor: 'pointer'
+                                    }}
+                                />
+                            </CommentProfileTooltip>
+                            <Box sx={{ ml: 1.5 }}>
+                                <CommentProfileTooltip userProfile={userProfile}>
+                                    <Typography 
+                                        variant="subtitle2" 
+                                        sx={{ 
+                                            fontWeight: 600,
+                                            color: '#e0e0e0',
+                                            fontSize: depth === 0 ? '0.95rem' : '0.9rem',
+                                            cursor: 'pointer',
+                                            display: 'inline-block',
+                                            '&:hover': {
+                                                color: '#f5f5f5'
+                                            }
+                                        }}
+                                    >
+                                        {userProfile?.username}
+                                    </Typography>
+                                </CommentProfileTooltip>
+                            </Box>
                         </Box>
+                        <Typography 
+                            variant="caption" 
+                            sx={{ 
+                                color: '#9e9e9e',
+                                fontSize: '0.75rem'
+                            }}
+                        >
+                            {formatDate(comment.created_date)}
+                        </Typography>
                     </Box>
 
                     {/* Comment Text */}

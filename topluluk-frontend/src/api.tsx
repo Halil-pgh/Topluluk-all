@@ -56,7 +56,10 @@ apiClient.interceptors.response.use(
                 
                 processQueue(refreshErr);
                 console.error('Token refresh failed:', refreshErr);
-                return Promise.reject(refreshErr);
+                
+                // If refresh fails, don't retry the original request
+                // Just reject it immediately to prevent hanging
+                return Promise.reject(error);
             } finally {
                 isRefreshing = false;
             }

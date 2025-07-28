@@ -7,11 +7,17 @@ import { Avatar, Box, Button, Card, CardActions, CardContent, CardMedia, Contain
 import { ArrowDownward, ArrowUpward, Comment, Delete, Block } from "@mui/icons-material"
 import CommentComponent from './Comment'
 import CreateCommentForm from "./CreateCommentForm"
+import ProfileTooltip from './ProfileTooltip'
 
 export interface Profile {
     url: string,
     username: string,
     image: string,
+    description: string,
+    links: string, // just one link
+    karma: number,
+    subscribedDate: string, // empty string if not subscribed to the topics community
+    banExpriationDate: string, // empty string if not banned from the topics community
 }
 
 export interface Topic {
@@ -32,6 +38,8 @@ export interface Topic {
 export const topicResponseToTopic = async (topicResponse: TopicResponse, isAuthenticated: boolean) => {
     const userResponse = await apiClient.get(topicResponse.user)
     const profileResponse = await apiClient.get(`${topicResponse.user}profile/`)
+    const subscribedInfoResponse = await apiClient.get(`${profileResponse.data.profile.url}subscribe_info?t=${topicResponse.slug}`)
+    const bannedInfoResponse = await apiClient.get(`${profileResponse.data.profile.url}ban_info?t=${topicResponse.slug}`)
     const voteResponse = isAuthenticated ? await apiClient.get(`${topicResponse.url}my_vote/`) : { data: { value: 0 }}
     const topic: Topic = {
         url: topicResponse.url,
@@ -44,6 +52,11 @@ export const topicResponseToTopic = async (topicResponse: TopicResponse, isAuthe
             url: profileResponse.data.profile.url,
             username: userResponse.data.username,
             image: profileResponse.data.profile.image,
+            description: profileResponse.data.profile.description,
+            links: profileResponse.data.profile.links,
+            karma: profileResponse.data.profile.karma,
+            subscribedDate: subscribedInfoResponse.data.joined_date,
+            banExpriationDate: bannedInfoResponse.data.expires_at,
         },
         voteCount: topicResponse.vote_count,
         viewCount: topicResponse.view_count,
@@ -326,40 +339,54 @@ function Topic() {
                     <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
+                        justifyContent: 'space-between',
                         p: 3,
                         pb: 2,
                         background: 'rgba(0,0,0,0.3)',
                         borderBottom: '1px solid #3a3a3a'
                     }}>
-                        <Avatar 
-                            src={topic.profile.image} 
-                            alt={topic.profile.username}
-                            sx={{ 
-                                width: 56,
-                                height: 56,
-                                border: '2px solid #4a4a4a'
-                            }}
-                        />
-                        <Box sx={{ ml: 2, flex: 1 }}>
-                            <Typography 
-                                variant="h6" 
-                                sx={{ 
-                                    fontWeight: 600,
-                                    color: '#e0e0e0'
-                                }}
-                            >
-                                {topic.profile.username}
-                            </Typography>
-                            <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                    color: '#9e9e9e',
-                                    fontSize: '0.875rem'
-                                }}
-                            >
-                                {formatDate(topic.createdDate)}
-                            </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <ProfileTooltip profile={topic.profile}>
+                                <Avatar 
+                                    src={topic.profile.image} 
+                                    alt={topic.profile.username}
+                                    sx={{ 
+                                        width: 56,
+                                        height: 56,
+                                        border: '2px solid #4a4a4a',
+                                        cursor: 'pointer'
+                                    }}
+                                />
+                            </ProfileTooltip>
+                            <Box sx={{ ml: 2 }}>
+                                <ProfileTooltip profile={topic.profile}>
+                                    <Typography 
+                                        variant="h6" 
+                                        sx={{ 
+                                            fontWeight: 600,
+                                            color: '#e0e0e0',
+                                            cursor: 'pointer',
+                                            display: 'inline-block',
+                                            '&:hover': {
+                                                color: '#f5f5f5'
+                                            }
+                                        }}
+                                    >
+                                        {topic.profile.username}
+                                    </Typography>
+                                </ProfileTooltip>
+                            </Box>
                         </Box>
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                color: '#9e9e9e',
+                                fontSize: '0.875rem',
+                                fontWeight: 500
+                            }}
+                        >
+                            {formatDate(topic.createdDate)}
+                        </Typography>
                     </Box>
 
                     {/* Title */}

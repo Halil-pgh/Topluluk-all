@@ -19,6 +19,8 @@ import GroupIcon from '@mui/icons-material/Group';
 import SubscriptionsIcon from '@mui/icons-material/Subscriptions';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
+import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
 import apiClient from './api';
 import { useAuth } from './useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -308,16 +310,18 @@ function ResponsiveAppBar() {
                   onClose={handleCloseUserMenu}
                 >
                   <MenuItem key='Profile' onClick={handleProfile}>
+                    <PersonIcon sx={{ mr: 1 }} />
                     <Typography sx={{ textAlign: 'center' }}>Profile</Typography>
                   </MenuItem>
-                  <MenuItem key='Logout' onClick={handleLogout}>
-                    <Typography sx={{ textAlign: 'center' }}>Logout</Typography>
+                  <MenuItem key='SignOut' onClick={handleLogout}>
+                    <LogoutIcon sx={{ mr: 1 }} />
+                    <Typography sx={{ textAlign: 'center' }}>Sign Out</Typography>
                   </MenuItem>
                 </Menu>
               </>
             ) : (
               <Box>
-                <Button color='inherit' onClick={handleLogin}>Login</Button>
+                <Button color='inherit' onClick={handleLogin}>Sign In</Button>
                 <Button color='inherit' onClick={handleSignUp}>Sign Up</Button>
               </Box>
             ) }

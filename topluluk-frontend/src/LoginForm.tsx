@@ -75,7 +75,7 @@ function LoginForm() {
                             variant="contained"
                             sx={{ mt:3, mb:2 }}
                         >
-                            Log In
+                            Sign In
                         </Button>
                     </Box>
                 </CardContent>

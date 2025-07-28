@@ -25,7 +25,21 @@ export const AuthProvider = ({ children } : { children: ReactNode }) => {
                 setIsLoading(false)
             }
         }
-        verifyAuth()
+        
+        // Add a timeout to ensure loading state is cleared even if request hangs
+        const timeoutId = setTimeout(() => {
+            console.warn('Authentication check timed out')
+            setIsAuthenticated(false)
+            setIsLoading(false)
+        }, 5000) // 5 second timeout
+
+        verifyAuth().finally(() => {
+            clearTimeout(timeoutId)
+        })
+
+        return () => {
+            clearTimeout(timeoutId)
+        }
     }, [])
 
     const login = () => {
@@ -43,8 +57,16 @@ export const AuthProvider = ({ children } : { children: ReactNode }) => {
         }
     }
 
-    if (isLoading)
-        return null
+    if (isLoading) {
+        // Instead of returning null (which prevents the app from rendering),
+        // we'll render the children with authentication set to false
+        // This ensures the app loads even if auth check is slow/failing
+        return (
+            <AuthContext.Provider value={{ isAuthenticated: false, login, logout }}>
+                {children}
+            </AuthContext.Provider>
+        )
+    }
 
     return (
         <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
