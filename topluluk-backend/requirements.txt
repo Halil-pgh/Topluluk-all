@@ -9,3 +9,8 @@ sqlparse==0.5.3
 channels==4.2.2
 channels-redis==4.2.1
 daphne==4.2.1
+django-extensions==3.2.3
+psycopg2-binary==2.9.9
+ipython
+pgvector
+sentence-transformers

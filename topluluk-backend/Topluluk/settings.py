@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'communities.apps.CommunitiesConfig',
     'stats.apps.StatsConfig',
+    'django_extensions',
+    'pgvector.django',
 ]
 
 MIDDLEWARE = [
@@ -116,9 +118,16 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": os.getenv("DATABASE_DEFAULT_ENGINE"),
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+        "HOST": os.getenv("DATABASE_DEFAULT_HOST"),
+        "PORT": os.getenv("DATABASE_DEFAULT_PORT"),
+        # "OPTIONS": {
+        #   "options": env('DATABASE_DEFAULT_OPTIONS')
+        # }
     }
 }
 

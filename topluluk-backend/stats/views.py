@@ -1,5 +1,4 @@
 import datetime
-from email.policy import default
 
 from django.db.models import Count, ExpressionWrapper, F, Sum
 from django.db.models.fields import IntegerField
@@ -7,7 +6,7 @@ from django.utils import timezone
 from rest_framework import views, status
 from rest_framework.response import Response
 
-from communities.models import Community, Topic, Profile
+from communities.models import Community, Topic, Profile, TopicVote, CommentVote
 from communities.serializers import CommunitySerializer, TopicSerializer, ProfileSerializer
 
 
@@ -44,13 +43,7 @@ class MostViewedCommunities(views.APIView):
 
 class MostKarmaProfiles(views.APIView):
     def get(self, request):
-        result = Profile.objects.annotate(
-            topic_karma=Sum('user__topicvote__value', default=0),
-            comment_karma=Sum('user__commentvote__value', default=0),
-            karma=ExpressionWrapper(
-                F('topic_karma') + F('comment_karma'),
-                output_field=IntegerField()
-            )
-        ).order_by('-karma')[:5]
-        serializer = ProfileSerializer(result, many=True, context={'request': request})
+        profiles = Profile.objects.all()
+        profiles = sorted(profiles, key=lambda p: p.karma(), reverse=True)[:5]
+        serializer = ProfileSerializer(profiles, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)

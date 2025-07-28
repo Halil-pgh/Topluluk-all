@@ -1,8 +1,11 @@
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
 from django.utils import timezone
+from pgvector.django import VectorField
+import numpy as np
+
+from communities.embedding import generate_embedding
 
 
 class Profile(models.Model):
@@ -11,11 +14,31 @@ class Profile(models.Model):
     image = models.ImageField(upload_to='profile_images/')
     description = models.TextField(default='')
     links = models.URLField(blank=True)
+    interest_vector = VectorField(dimensions=384, null=True)
+    weighted_sum_vector = VectorField(dimensions=384, null=True)
+    total_weight = models.FloatField(default=0)
     slug = models.SlugField(unique=True, blank=True)
 
+    def update_interaction(self, interaction_embedding, weight):
+        ws_vec = np.array(self.weighted_sum_vector or np.zeros(384))
+        tw = self.total_weight
+
+        ws_vec += weight * np.array(interaction_embedding)
+        tw += weight
+
+        self.weighted_sum_vector = ws_vec.tolist()
+        self.total_weight = tw
+        self.interest_vector = (ws_vec / tw).tolist()
+        self.save()
+
     def karma(self):
-        topic_karma = self.user.topicvote_set.aggregate(total=models.Sum('value'))['total'] or 0
-        comment_karma = self.user.commentvote_set.aggregate(total=models.Sum('value'))['total'] or 0
+        topic_karma = TopicVote.objects.filter(topic__user=self.user).aggregate(
+            total=models.Sum('value')
+        )['total'] or 0
+
+        comment_karma = CommentVote.objects.filter(comment__user=self.user).aggregate(
+            total=models.Sum('value')
+        )['total'] or 0
         return topic_karma + comment_karma
 
     def save(self, *args, **kwargs):
@@ -31,11 +54,14 @@ class Community(models.Model):
     image = models.ImageField(upload_to='community_images/')
     description = models.TextField(blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
+    embedding = VectorField(dimensions=384, blank=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
+        if not self.embedding:
+            self.embedding = generate_embedding(self.name + ' ' + self.description)
         super().save(*args, **kwargs)
 
     def topics(self):
@@ -57,6 +83,9 @@ class Subscriber(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     community = models.ForeignKey(Community, on_delete=models.CASCADE)
     joined_date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'community')
 
     def __str__(self):
         return f'{self.user.username} is subscribed to {self.community.name}'
@@ -85,6 +114,7 @@ class Topic(models.Model):
     image = models.ImageField(upload_to='topic_images/', null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    embedding = VectorField(dimensions=384, blank=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def view_count(self):
@@ -96,6 +126,8 @@ class Topic(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.title)
+        if not self.embedding:
+            self.embedding = generate_embedding(self.title + ' ' + self.text)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -106,7 +138,7 @@ class Comment(models.Model):
     text = models.TextField(null=False)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    # TODO: add reply_count field so that frontend doesnt have to make recursive call to count replies
+    embedding = VectorField(dimensions=384, blank=True)
 
     upper_comment = models.ForeignKey(
         'self',
@@ -122,6 +154,11 @@ class Comment(models.Model):
     def comment_count(self):
         return self.replies.count()
 
+    def save(self, *args, **kwargs):
+        if not self.embedding:
+            self.embedding = generate_embedding(self.text)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.user.username}: {self.text}'
 
@@ -135,6 +172,10 @@ class VoteBase(models.Model):
 class TopicVote(VoteBase):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE)
 
+    def save(self, *args, **kwargs):
+        self.user.profile.update_interaction(self.topic.embedding, weight=3*self.value)
+        super().save(*args, **kwargs)
+
     class Meta:
         unique_together = ('topic', 'user')
 
@@ -143,6 +184,10 @@ class TopicVote(VoteBase):
 
 class CommentVote(VoteBase):
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        self.user.profile.update_interaction(self.comment.embedding, weight=3*self.value)
+        super().save(*args, **kwargs)
 
     class Meta:
         unique_together = ('comment', 'user')
@@ -160,11 +205,19 @@ class ClickBase(models.Model):
 class TopicClick(ClickBase):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE)
 
+    def save(self, *args, **kwargs):
+        self.user.profile.update_interaction(self.topic.embedding, weight=1)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.user.username} has clicked to {self.topic.title} topic'
 
 class CommunityClick(ClickBase):
     community = models.ForeignKey(Community, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        self.user.profile.update_interaction(self.community.embedding, weight=0.5)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.user.username} has clicked to {self.community.name} community'

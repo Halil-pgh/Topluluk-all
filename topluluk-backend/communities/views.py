@@ -3,14 +3,13 @@ import datetime
 from asgiref.sync import async_to_sync
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.core.serializers import serialize
 from django.db.models import Q, Count, ExpressionWrapper, F
 from django.db.models.fields import IntegerField
 from django.utils import timezone
 from rest_framework import permissions, views, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import RetrieveUpdateAPIView, get_object_or_404
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -22,7 +21,7 @@ from communities.permissions import IsOwnerOrReadonly, IsOwnerOrReadonlyForUser,
     IsNotAuthenticated, IsModerator, IsModeratorOfTopic, IsModeratorOfBan, \
     IsNotBannedFromCommunity, IsModeratorOfComment
 from communities.serializers import ProfileSerializer, UserSerializer, UserRegisterSerializer, CommunitySerializer, \
-    TopicSerializer, CommentSerializer, NotificationSerializer, BanSerializer
+    TopicSerializer, CommentSerializer, NotificationSerializer, BanSerializer, SubscriberSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -123,6 +122,44 @@ class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     lookup_field = 'slug'
+
+    def get_profile_and_topic(self, request):
+        profile = self.get_object()
+        query = request.query_params.get('t', None)
+        if query is None:
+            return Response('', status=status.HTTP_200_OK)
+        topics = Topic.objects.filter(slug=query)
+        if not topics.exists():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        topic = topics[0]
+        return profile, topic
+
+    @action(detail=True, methods=['get'])
+    def subscribe_info(self, request, slug):
+        # expects topic slug in the query params
+        result = self.get_profile_and_topic(request)
+        if isinstance(result, Response):
+            return result
+        profile, topic = result
+        subs = Subscriber.objects.filter(user=profile.user, community=topic.community)
+        if not subs.exists():
+            return Response({'joined_date': ''}, status=status.HTTP_200_OK)
+        serializer = SubscriberSerializer(subs[0], context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'])
+    def ban_info(self, request, slug):
+        # expects topic slug in the query params
+        result = self.get_profile_and_topic(request)
+        if isinstance(result, Response):
+            return result
+        profile, topic = result
+        bans = Ban.objects.filter(user=profile.user, community=topic.community).order_by('-expires_at')
+        for ban in bans:
+            if ban.is_active():
+                serializer = BanSerializer(ban, context={'request': request})
+                return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({'expires_at': ''}, status=status.HTTP_200_OK)
 
     def get_permissions(self):
         if self.action == 'create':
@@ -409,7 +446,7 @@ class CommentViewSet(Votable, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        community = serializer.validated_data.get('topic').get('community')
+        community = serializer.validated_data.get('topic').community
 
         if BanManager.is_user_banned(user, community):
             raise PermissionDenied('You are banned from this community and cannot create topics in it.')
@@ -501,6 +538,15 @@ class SearchAPI(views.APIView):
 
         serializer = TopicSerializer(search_results, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class SubscriberViewSet(viewsets.ModelViewSet):
+    queryset = Subscriber.objects.all()
+    serializer_class = SubscriberSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'partial_update', 'update', 'destroy']:
+            return [permissions.IsAuthenticatedOrReadOnly()] # TODO: do not give any permission
+        return [permissions.AllowAny()]
 
 # only for test purposes
 class NotificationViewSet(viewsets.ModelViewSet):

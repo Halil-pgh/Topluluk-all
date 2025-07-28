@@ -50,9 +50,22 @@ class CommunitySerializer(serializers.HyperlinkedModelSerializer):
         fields = ['url', 'name', 'image', 'description', 'slug', 'subscriber_count', 'total_view_count']
 
 class SubscriberSerializer(serializers.HyperlinkedModelSerializer):
+    user = serializers.HyperlinkedRelatedField(
+        view_name='user-detail',
+        read_only=True
+    )
+    community = serializers.HyperlinkedRelatedField(
+        queryset=Community.objects.all(),
+        view_name='community-detail',
+        lookup_field='slug'
+    )
+    url = serializers.HyperlinkedIdentityField(
+        view_name='subscriber-detail'
+    )
+
     class Meta:
         model = Subscriber
-        fields = '__all__'
+        fields = ['url', 'user', 'community', 'joined_date']
 
 class ModeratorSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
