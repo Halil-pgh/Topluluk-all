@@ -1,5 +1,5 @@
 import { Box, Container, Typography, Link, Grid, IconButton, Divider, Stack } from '@mui/material';
-import { GitHub, Instagram, Twitter, LinkedIn, Email, LocationOn } from '@mui/icons-material';
+import { GitHub, Instagram, LinkedIn, Email, LocationOn } from '@mui/icons-material';
 
 const Footer = () => {
   return (

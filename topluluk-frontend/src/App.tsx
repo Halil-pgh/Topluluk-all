@@ -13,6 +13,7 @@ import HotTopics from "./HotTopics"
 import { Box } from "@mui/material"
 import Footer from "./Footer"
 import Index from "./Index"
+import ForYou from "./ForYou"
 
 function AppContent() {
     const location = useLocation();
@@ -44,6 +45,7 @@ function AppContent() {
                     <Route path='/communities/:slug/create_topic' element={<CreateTopicForm />} />
                     <Route path='/communities/:communitySlug/:topicSlug' element={<Topic />} />
                     <Route path='/edit/community/:slug' element={<EditCommunity />} />
+                    <Route path='/for_you' element={<ForYou />} />
                     <Route path='/hot_topics' element={<HotTopics />} />
                 </Routes>
             </Box>

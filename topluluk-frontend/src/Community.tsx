@@ -382,7 +382,7 @@ function Community() {
                                             transition: 'all 0.3s ease'
                                         }}
                                     >
-                                        Ask Question
+                                        Create Topic
                                     </Button>
                                 )}
                             </Box>
