@@ -38,7 +38,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         try:
             return Notification.objects.get(id=id)
         except Notification.DoesNotExist:
-            print('OHOHOHOHOHOOH')
             return None
 
     @database_sync_to_async

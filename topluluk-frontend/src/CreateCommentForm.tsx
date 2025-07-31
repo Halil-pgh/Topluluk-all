@@ -48,7 +48,7 @@ function CreateCommentForm({ topicUrl, parentCommentUrl, onCommentCreated, onCan
         return (
             <Card>
                 <CardContent>
-                    <Typography>Please log in to comment.</Typography>
+                    <Typography>Please sign in in to comment.</Typography>
                 </CardContent>
             </Card>
         )

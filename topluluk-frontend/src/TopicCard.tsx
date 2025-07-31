@@ -204,7 +204,6 @@ const TopicCard = ({
                                 height: 300,
                                 objectFit: 'contain',
                                 borderRadius: '12px',
-                                mx: 3,
                                 mb: 2
                             }}
                         />

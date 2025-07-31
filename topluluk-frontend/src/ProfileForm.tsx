@@ -76,7 +76,39 @@ function ProfileForm() {
 
     if (!isAuthenticated) {
         return (
-            <Box></Box>
+            <Box component='main'
+                sx={{
+                    margin: 'auto',
+                    mt: 8,
+                    px: 2,
+                    display: 'flex',
+                    justifyContent: 'center'
+                }}>
+                <Card sx={{ width: '100%', maxWidth: 400, p: 2 }}>
+                    <CardContent sx={{ textAlign: 'center' }}>
+                        <Typography component='h1' variant="h5" sx={{ mb: 2 }}>
+                            Authentication Required
+                        </Typography>
+                        <Alert severity="warning" sx={{ mb: 3 }}>
+                            You need to be signed in to access your profile settings.
+                        </Alert>
+                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                            <Button
+                                variant="contained"
+                                onClick={() => navigate('/login')}
+                            >
+                                Sign In
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                onClick={handleMainMenu}
+                            >
+                                Back to Home
+                            </Button>
+                        </Box>
+                    </CardContent>
+                </Card>
+            </Box>
         )
     }
 

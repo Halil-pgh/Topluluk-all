@@ -48,9 +48,13 @@ function Communities({ message = 'Recent Communities', url = 'community/' }: Com
                 )
                 
                 setCommunities(communitiesWithSubscription)
-            } catch (error) {
-                setError('Failed to fetch communities.')
-                console.error(error)
+            } catch (err: any) {
+                if (err.response?.status === 401) {
+                    setError('You have to be authenticated to see your subscriptions.')
+                } else {
+                    setError('Failed to fetch communities.')
+                }
+                console.error(err)
             } finally {
                 setLoading(false)
             }

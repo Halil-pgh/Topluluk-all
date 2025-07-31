@@ -406,7 +406,7 @@ function Topic() {
                     </Box>
 
                     {/* Content */}
-                    {topic.image ? (
+                    {topic.image && (
                         <CardMedia
                             component="img"
                             image={topic.image}
@@ -415,29 +415,28 @@ function Topic() {
                                 objectFit: 'contain', 
                                 maxHeight: 600,
                                 borderRadius: '12px',
-                                mx: 3,
                                 mb: 3
                             }}
                         />
-                    ) : (
-                        <CardContent sx={{ 
-                            pt: 0,
-                            pb: 3,
-                            px: 3,
-                            '&:last-child': { pb: 3 }
-                        }}>
-                            <Typography 
-                                variant="body1" 
-                                sx={{
-                                    lineHeight: 1.7,
-                                    color: '#d0d0d0',
-                                    fontSize: '1.1rem'
-                                }}
-                            >
-                                {topic.text}
-                            </Typography>
-                        </CardContent>
                     )}
+                    <CardContent sx={{ 
+                        pt: 0,
+                        pb: 3,
+                        px: 3,
+                        '&:last-child': { pb: 3 }
+                    }}>
+                        <Typography 
+                            variant="body1" 
+                            sx={{
+                                lineHeight: 1.7,
+                                color: '#d0d0d0',
+                                fontSize: '1.1rem'
+                            }}
+                        >
+                            {topic.text}
+                        </Typography>
+                    </CardContent>
+
 
                     {/* Actions Bar */}
                     <CardActions sx={{ 

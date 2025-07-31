@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import apiClient from "./api"
 import { useNavigate } from "react-router-dom"
 import { Alert, Avatar, Box, Button, Card, CardContent, IconButton, TextField, Typography } from "@mui/material"
+import { useAuth } from "./useAuth"
 
 function CreateCommunityForm() {
     const [name, setName] = useState<string>('')
@@ -10,6 +11,7 @@ function CreateCommunityForm() {
     const [pictureFile, setPictureFile] = useState<File | null>(null)
     const [error, setError] = useState<string>('')
     const [success, setSuccess] = useState<string>('')
+    const { isAuthenticated } = useAuth()
     const navigate = useNavigate()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -56,6 +58,17 @@ function CreateCommunityForm() {
             console.error(error)
         }
     }
+
+    if (!isAuthenticated) {
+        return (
+            <Card>
+                <CardContent>
+                    <Typography>Please sign in to create community.</Typography>
+                </CardContent>
+            </Card>
+        )
+    }
+
 
     return (
         <Box component='main'
