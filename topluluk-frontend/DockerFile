@@ -1,0 +1,25 @@
+FROM node:23-bookworm as builder
+
+WORKDIR /app
+
+COPY package.json .
+
+COPY package-lock.json .
+
+COPY .npmrc .
+
+RUN npm ci
+
+COPY . .
+
+RUN npm run build
+
+
+# dist
+FROM node:23-bookworm as final
+
+WORKDIR /app
+
+RUN npm install -g serve@14.2.1
+
+COPY --from=builder /app/build ./build
