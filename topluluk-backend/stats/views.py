@@ -117,6 +117,8 @@ class MostKarmaProfiles(views.APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ActivityOfWebsite(views.APIView):
+    all_activities = [Topic, Comment, Community, TopicClick, CommunityClick, TopicVote, CommentVote]
+
     def get(self, request):
         time_query = request.query_params.get('time', None)
         activity_count = 0
@@ -124,24 +126,14 @@ class ActivityOfWebsite(views.APIView):
             try:
                 hours = int(time_query)
                 real_time = timezone.now() - datetime.timedelta(hours=hours)
-                activity_count += Topic.objects.filter(created_date__gt=real_time).count()
-                activity_count += Comment.objects.filter(created_date__gt=real_time).count()
-                activity_count += Community.objects.filter(created_date__gt=real_time).count()
-                activity_count += TopicClick.objects.filter(created_date__gt=real_time).count()
-                activity_count += CommunityClick.objects.filter(created_date__gt=real_time).count()
-                activity_count += TopicVote.objects.filter(created_date__gt=real_time).count()
-                activity_count += CommentVote.objects.filter(created_date__gt=real_time).count()
+                for activity in self.all_activities:
+                    activity_count += activity.objects.filter(created_date__gt=real_time).count()
             except (ValueError, TypeError):
                 return Response(
                     {'error': 'Invalid time parameter'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         else:
-            activity_count += Topic.objects.count()
-            activity_count += Comment.objects.count()
-            activity_count += Community.objects.count()
-            activity_count += TopicClick.objects.count()
-            activity_count += CommunityClick.objects.count()
-            activity_count += TopicVote.objects.count()
-            activity_count += CommentVote.objects.count()
+            for activity in self.all_activities:
+                activity_count += activity.objects.count()
         return Response({'activity_count': activity_count}, status=status.HTTP_200_OK)
