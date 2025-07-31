@@ -68,7 +68,7 @@ This command initializes the database schema and is required for the application
 
 ---
 
-## 🧹 Cleanup
+## Cleanup
 
 Stop and remove all containers:
 
@@ -84,7 +84,7 @@ docker compose down -v
 
 ---
 
-## 🧠 Credits
+## Credits
 
 Built with:
 - Django REST Framework
