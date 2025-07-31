@@ -34,8 +34,8 @@ cd Topluluk-all
 Create the following files based on the provided `.env.example` templates:
 
 ```bash
-cp envs/backend.env.example envs/backend.env
-cp envs/frontend.env.example envs/frontend.env
+cp topluluk-backend/backend.env.example topluluk-backend/backend.env
+cp envs/db.env.example envs/db.env
 ```
 
 Update them with your local configuration (DB credentials, Django secret, etc.)
