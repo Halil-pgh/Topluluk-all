@@ -1,10 +1,10 @@
-# 🧠 Topluluk
+# Topluluk
 
 Topluluk is a full-stack web application featuring a Django REST API backend and a React frontend. The project is containerized with Docker Compose for easy setup and deployment.
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 Topluluk/
@@ -18,7 +18,7 @@ Topluluk/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Clone the Repository
 
@@ -47,7 +47,7 @@ Update them with your local configuration (DB credentials, Django secret, etc.)
 Run the following to build and run the containers:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 This will:
@@ -57,37 +57,14 @@ This will:
 
 ---
 
-## 🛠 Django Backend
+### 4. Run Migrations
 
-Located in `topluluk-backend/`.
-
-### 🧬 Run Migrations
-
-After your containers are up, or in local env:
+After your containers are up:
 
 ```bash
 docker exec topluluk_app python manage.py migrate
 ```
-
----
-
-## 🌐 React Frontend
-
-Located in `topluluk-frontend/`.
-
-If you want to run it manually outside Docker:
-
-```bash
-cd topluluk-frontend
-npm install
-npm start
-```
-
----
-
-## 🐘 PostgreSQL
-
-Data is persisted in the `pg_data/` folder which is mounted as a Docker volume. **It is ignored by Git.**
+This command initializes the database schema and is required for the application to function properly, even if the containers are already running.
 
 ---
 
@@ -96,13 +73,13 @@ Data is persisted in the `pg_data/` folder which is mounted as a Docker volume. 
 Stop and remove all containers:
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 Remove volumes too (including DB data):
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ---
