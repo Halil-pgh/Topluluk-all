@@ -1,0 +1,10 @@
+# Ignore Postgres data
+pg_data/
+
+# Ignore Python virtual environments, etc.
+__pycache__/
+*.pyc
+*.pyo
+envs/
+.env
+

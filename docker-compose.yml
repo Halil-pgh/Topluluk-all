@@ -1,0 +1,46 @@
+services:
+  db:
+    container_name: topluluk_db
+    image: pgvector/pgvector:pg14
+    restart: always
+    env_file:
+      - envs/db.env
+    ports:
+      - "24632:5432"
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: topluluk_redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build:
+      context: ./topluluk-backend
+    container_name: topluluk_app
+    volumes:
+      - ./topluluk-backend:/app
+    ports:
+      - 8000:8000
+    env_file:
+      - ./topluluk-backend/backend.env
+    depends_on:
+      - redis
+    command: >
+      sh -c "python manage.py runserver 0.0.0.0:8000"
+
+  ui:
+    image: node:23-bookworm
+    working_dir: /app
+    container_name: topluluk_ui
+    restart: always
+    volumes:
+      - ./topluluk-frontend:/app
+    env_file:
+      - ./topluluk-frontend/frontend.env
+    ports:
+      - 5173:5173
+    command: |
+      sh -c "npm ci && npm start"
