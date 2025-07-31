@@ -34,20 +34,42 @@ class ProfileSerializer(serializers.HyperlinkedModelSerializer):
         view_name='profile-detail',
         lookup_field='slug'
     )
+    karma_after = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
-        fields = ['url', 'user', 'display_name', 'image', 'description', 'links', 'karma']
+        fields = ['url', 'user', 'display_name', 'image', 'description', 'links', 'karma', 'karma_after']
+
+    def get_karma_after(self, profile):
+        time_query = self.context.get('karma_after_time', None)
+        if time_query is not None:
+            return profile.karma_after(time_query)
+        return None
 
 class CommunitySerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name='community-detail',
         lookup_field='slug'
     )
+    subscriber_count_after = serializers.SerializerMethodField()
+    view_count_after = serializers.SerializerMethodField()
 
     class Meta:
         model = Community
-        fields = ['url', 'name', 'image', 'description', 'slug', 'subscriber_count', 'total_view_count']
+        fields = ['url', 'name', 'image', 'description', 'slug', 'subscriber_count', 'subscriber_count_after',
+                    'total_view_count', 'view_count_after']
+
+    def get_subscriber_count_after(self, community):
+        time_query = self.context.get('subscriber_count_after_time', None)
+        if time_query is not None:
+            return community.subscriber_count_after(time_query)
+        return None
+
+    def get_view_count_after(self, community):
+        time_query = self.context.get('subscriber_count_after_time', None)
+        if time_query is not None:
+            return community.view_count_after(time_query)
+        return None
 
 class SubscriberSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.HyperlinkedRelatedField(

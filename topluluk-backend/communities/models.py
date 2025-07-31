@@ -20,7 +20,10 @@ class Profile(models.Model):
     slug = models.SlugField(unique=True, blank=True)
 
     def update_interaction(self, interaction_embedding, weight):
-        ws_vec = np.array(self.weighted_sum_vector or np.zeros(384))
+        if self.weighted_sum_vector is not None:
+            ws_vec = np.array(self.weighted_sum_vector)
+        else:
+            ws_vec = np.zeros(384)
         tw = self.total_weight
 
         ws_vec += weight * np.array(interaction_embedding)
@@ -41,6 +44,16 @@ class Profile(models.Model):
         )['total'] or 0
         return topic_karma + comment_karma
 
+    def karma_after(self, after_time):
+        topic_karma = TopicVote.objects.filter(topic__user=self.user, created_date__gt=after_time).aggregate(
+            total=models.Sum('value')
+        )['total'] or 0
+
+        comment_karma = CommentVote.objects.filter(comment__user=self.user, created_date__gt=after_time).aggregate(
+            total=models.Sum('value')
+        )['total'] or 0
+        return topic_karma + comment_karma
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.user.username)
@@ -54,7 +67,7 @@ class Community(models.Model):
     image = models.ImageField(upload_to='community_images/')
     description = models.TextField(blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
-    embedding = VectorField(dimensions=384, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -65,15 +78,26 @@ class Community(models.Model):
         super().save(*args, **kwargs)
 
     def topics(self):
-        return self.topic_set.all()
+        return self.topic_set.order_by('-created_date').all()
 
     def subscriber_count(self):
         return self.subscriber_set.count()
+
+    def subscriber_count_after(self, after_time):
+        return self.subscriber_set.filter(
+            joined_date__gt=after_time
+        ).count()
 
     def total_view_count(self):
         total = self.communityclick_set.count()
         for topic in self.topic_set.all():
             total += topic.view_count()
+        return total
+
+    def view_count_after(self, after_time):
+        total = self.communityclick_set.filter(created_date__gt=after_time).count()
+        for topic in self.topic_set.all():
+            total += topic.view_count_after(after_time)
         return total
 
     def __str__(self):
@@ -114,11 +138,16 @@ class Topic(models.Model):
     image = models.ImageField(upload_to='topic_images/', null=True)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    embedding = VectorField(dimensions=384, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
     slug = models.SlugField(unique=True, blank=True)
 
     def view_count(self):
         return self.topicclick_set.count()
+
+    def view_count_after(self, after_time):
+        return self.topicclick_set.filter(
+            created_date__gt=after_time
+        ).count()
 
     def vote_count(self):
         return self.topicvote_set.aggregate(total=models.Sum('value'))['total'] or 0
@@ -138,7 +167,7 @@ class Comment(models.Model):
     text = models.TextField(null=False)
     created_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    embedding = VectorField(dimensions=384, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
 
     upper_comment = models.ForeignKey(
         'self',
@@ -165,6 +194,7 @@ class Comment(models.Model):
 class VoteBase(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     value = models.SmallIntegerField(default=0) # 1 for upvote, -1 for down vote
+    created_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         abstract = True

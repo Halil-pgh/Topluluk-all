@@ -1,12 +1,13 @@
 import datetime
 
-from django.db.models import Count, ExpressionWrapper, F, Sum
+from django.db.models import Count, ExpressionWrapper, F, Sum, Q
 from django.db.models.fields import IntegerField
 from django.utils import timezone
-from rest_framework import views, status
+from rest_framework import views, status, permissions
 from rest_framework.response import Response
 
-from communities.models import Community, Topic, Profile, TopicVote, CommentVote
+from communities.models import Community, Topic, Profile, TopicVote, CommentVote, TopicClick, Subscriber, \
+    CommunityClick, Comment
 from communities.serializers import CommunitySerializer, TopicSerializer, ProfileSerializer
 
 
@@ -21,29 +22,126 @@ class HotTopics(views.APIView):
                 F('view_count') + F('vote_count') * 5,
                 output_field=IntegerField()
             )
-        ).order_by('-score')[:5]
+        ).order_by('-score')
         serializer = TopicSerializer(result, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class Recommendation(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        profile = Profile.objects.get(user=user)
+        limit = 10
+
+        interacted_topics = TopicClick.objects.filter(user=user).values_list('topic', flat=True).union(
+            TopicVote.objects.filter(user=user).values_list('topic', flat=True)
+        )
+
+        from pgvector.django import CosineDistance
+
+        similar_topics = Topic.objects.exclude(
+            id__in=interacted_topics
+        ).filter(
+            embedding__isnull=False
+        ).order_by(
+            CosineDistance('embedding', profile.interest_vector)
+        )[:limit]
+
+        serializer = TopicSerializer(similar_topics, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class MostSubscribedCommunities(views.APIView):
     def get(self, request):
-        result = Community.objects.annotate(
-            number_of_subscribers=Count('subscriber')
-        ).order_by('-number_of_subscribers')[:4]
-        serializer = CommunitySerializer(result, many=True, context={'request': request})
+        time_query = request.query_params.get('time', None)
+        community_query = Community.objects.all()
+        if time_query is not None:
+            try:
+                hours = int(time_query)
+                real_time = timezone.now() - datetime.timedelta(hours=hours)
+                communities = sorted(community_query, key=lambda c: c.subscriber_count_after(real_time), reverse=True)[:5]
+                context = {'request': request, 'subscriber_count_after_time': real_time}
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid time parameter'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            communities = sorted(community_query, key=lambda c: c.subscriber_count(), reverse=True)[:5]
+            context = {'request': request}
+
+        serializer = CommunitySerializer(communities, many=True, context=context)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class MostViewedCommunities(views.APIView):
     def get(self, request):
-        result = Community.objects.annotate(
-            total=Count('communityclick')
-        ).order_by('-total')
-        serializer = CommunitySerializer(result, many=True, context={'request': request})
+        time_query = request.query_params.get('time', None)
+        community_query = Community.objects.all()
+        if time_query is not None:
+            try:
+                hours = int(time_query)
+                real_time = timezone.now() - datetime.timedelta(hours=hours)
+                communities = sorted(community_query, key=lambda c: c.view_count_after(real_time), reverse=True)[:5]
+                context = {'request': request, 'view_count_after_time': real_time}
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid time parameter'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            communities = sorted(community_query, key=lambda c: c.total_view_count(), reverse=True)[:5]
+            context = {'request': request}
+
+        serializer = CommunitySerializer(communities, many=True, context=context)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class MostKarmaProfiles(views.APIView):
     def get(self, request):
-        profiles = Profile.objects.all()
-        profiles = sorted(profiles, key=lambda p: p.karma(), reverse=True)[:5]
-        serializer = ProfileSerializer(profiles, many=True, context={'request': request})
+        time_query = request.query_params.get('time', None)
+        profile_query = Profile.objects.all()
+        if time_query is not None:
+            try:
+                hours = int(time_query)
+                real_time = timezone.now() - datetime.timedelta(hours=hours)
+                profiles = sorted(profile_query, key=lambda p: p.karma_after(real_time), reverse=True)[:5]
+                context = {'request': request, 'karma_after_time': real_time}
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid time parameter'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            profiles = sorted(profile_query, key=lambda p: p.karma(), reverse=True)[:5]
+            context = {'request': request}
+        serializer = ProfileSerializer(profiles, many=True, context=context)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ActivityOfWebsite(views.APIView):
+    def get(self, request):
+        time_query = request.query_params.get('time', None)
+        activity_count = 0
+        if time_query is not None:
+            try:
+                hours = int(time_query)
+                real_time = timezone.now() - datetime.timedelta(hours=hours)
+                activity_count += Topic.objects.filter(created_date__gt=real_time).count()
+                activity_count += Comment.objects.filter(created_date__gt=real_time).count()
+                activity_count += Community.objects.filter(created_date__gt=real_time).count()
+                activity_count += TopicClick.objects.filter(created_date__gt=real_time).count()
+                activity_count += CommunityClick.objects.filter(created_date__gt=real_time).count()
+                activity_count += TopicVote.objects.filter(created_date__gt=real_time).count()
+                activity_count += CommentVote.objects.filter(created_date__gt=real_time).count()
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid time parameter'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            activity_count += Topic.objects.count()
+            activity_count += Comment.objects.count()
+            activity_count += Community.objects.count()
+            activity_count += TopicClick.objects.count()
+            activity_count += CommunityClick.objects.count()
+            activity_count += TopicVote.objects.count()
+            activity_count += CommentVote.objects.count()
+        return Response({'activity_count': activity_count}, status=status.HTTP_200_OK)
