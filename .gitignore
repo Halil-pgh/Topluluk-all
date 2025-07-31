@@ -5,6 +5,5 @@ pg_data/
 __pycache__/
 *.pyc
 *.pyo
-envs/
 .env
 
