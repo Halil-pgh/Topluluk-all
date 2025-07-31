@@ -16,10 +16,10 @@ class HotTopics(views.APIView):
     def get(self, request):
         one_day_ago = timezone.now() - datetime.timedelta(days=1)
         result = Topic.objects.filter(created_date__gt=one_day_ago).annotate(
-            vote_count=Sum('topicvote__value'),
-            view_count=Count('topicclick'),
+            vote_value=Sum('topicvote__value'),
+            view_value=Count('topicclick'),
             score=ExpressionWrapper(
-                F('view_count') + F('vote_count') * 5,
+                F('view_value') + F('vote_value') * 5,
                 output_field=IntegerField()
             )
         ).order_by('-score')
