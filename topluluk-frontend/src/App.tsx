@@ -14,10 +14,11 @@ import { Box } from "@mui/material"
 import Footer from "./Footer"
 import Index from "./Index"
 import ForYou from "./ForYou"
+import Status from "./Status"
 
 function AppContent() {
     const location = useLocation();
-    const hideNavAndFooter = ['/login', '/sign_up', '/profile', '/create_community'].includes(location.pathname);
+    const hideNavAndFooter = ['/login', '/sign_up', '/profile', '/settings', '/create_community'].includes(location.pathname);
 
     return (
         <Box sx={{
@@ -38,6 +39,7 @@ function AppContent() {
                     <Route path="/login" element={<LoginForm />} />
                     <Route path='/sign_up' element={<SignUpForm />} />
                     <Route path='/profile' element={<ProfileForm />} />
+                    <Route path='/settings' element={<ProfileForm />} />
                     <Route path='/create_community' element={<CreateCommunityForm />} />
                     <Route path='/communities' element={<Communities />} />
                     <Route path='/subscriptions' element={<Communities message='Subscribed Communities' url='subscriptions/' />} />
@@ -47,6 +49,7 @@ function AppContent() {
                     <Route path='/edit/community/:slug' element={<EditCommunity />} />
                     <Route path='/for_you' element={<ForYou />} />
                     <Route path='/hot_topics' element={<HotTopics />} />
+                    <Route path='/status' element={<Status />} />
                 </Routes>
             </Box>
 

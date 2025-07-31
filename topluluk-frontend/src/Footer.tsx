@@ -312,18 +312,6 @@ const Footer = () => {
             >
               System Status
             </Link>
-            <Link 
-              href="/sitemap" 
-              sx={{ 
-                color: 'text.secondary', 
-                textDecoration: 'none',
-                fontSize: '0.875rem',
-                transition: 'color 0.3s ease',
-                '&:hover': { color: 'primary.main' }
-              }}
-            >
-              Sitemap
-            </Link>
           </Box>
         </Box>
       </Container>
